@@ -1,4 +1,5 @@
 import type { Screen } from "../page";
+import Link from "next/link";
 
 type SidebarProps = {
   activeScreen: Screen;
@@ -61,6 +62,12 @@ export default function Sidebar({ activeScreen, onNavigate }: SidebarProps) {
         <strong>286 leads na fila</strong>
         <span>12 SDRs online agora</span>
       </div>
+
+      <Link className="internal-environment-link" href="/cliente">
+        <span>CL</span>
+        <div><strong>Portal Cliente</strong><small>Alternar ambiente</small></div>
+        <i>→</i>
+      </Link>
 
       <div className="sidebar-user">
         <span className="avatar avatar-dark">CM</span>

@@ -17,27 +17,27 @@ export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og.png`;
+  const imageUrl = `${protocol}://${host}/og-platform.png`;
 
   return {
-    title: "OnTarget | Operação Comercial",
+    title: "OnTarget | Operação e Portal do Cliente",
     description:
-      "Gestão inteligente de operações SDR, contatos, callbacks e agendamentos para o setor automotivo.",
+      "Operação SDR e resultados de campanhas automotivas conectados em uma única plataforma.",
     icons: {
       icon: "/favicon.svg",
       shortcut: "/favicon.svg",
     },
     openGraph: {
-      title: "OnTarget | Operação Comercial",
-      description: "Operação comercial, agora sob controle.",
+      title: "OnTarget | Operação e Portal do Cliente",
+      description: "Operação e resultados, na mesma plataforma.",
       type: "website",
       locale: "pt_BR",
-      images: [{ url: imageUrl, width: 1680, height: 945, alt: "OnTarget — Operação comercial, agora sob controle" }],
+      images: [{ url: imageUrl, width: 1680, height: 945, alt: "OnTarget — Operação e resultados, na mesma plataforma" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "OnTarget | Operação Comercial",
-      description: "Operação comercial, agora sob controle.",
+      title: "OnTarget | Operação e Portal do Cliente",
+      description: "Operação e resultados, na mesma plataforma.",
       images: [imageUrl],
     },
   };
