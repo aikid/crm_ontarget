@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Device, type Call } from "@twilio/voice-sdk";
 import { leads, type LeadHistoryItem } from "../data/mockData";
+import { onTargetApi } from "../lib/ontarget-api";
 
 type ResultType = "scheduled" | "qualified" | "callback" | "no_answer" | "no_interest" | "invalid";
 type CallPhase = "idle" | "calling" | "active" | "ended";
@@ -9,6 +11,9 @@ type CallPhase = "idle" | "calling" | "active" | "ended";
 type SdrScreenProps = {
   onBack: () => void;
 };
+
+const SDR_ID = "user-sdr-ana";
+const SDR_VOICE_IDENTITY = "ana_souza";
 
 const resultOptions: { id: ResultType; label: string; shortcut: string; detail: string }[] = [
   { id: "scheduled", label: "Agendado", shortcut: "1", detail: "Visita confirmada" },
@@ -59,6 +64,11 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   const [metrics, setMetrics] = useState({ worked: 32, contacts: 8, scheduled: 3, callbacks: 2 });
   const [callbackDate, setCallbackDate] = useState("2026-08-09");
   const [callbackTime, setCallbackTime] = useState("18:00");
+  const deviceRef = useRef<Device | null>(null);
+  const activeCallRef = useRef<Call | null>(null);
+  const startingCallRef = useRef(false);
+  const cancelRequestedRef = useRef(false);
+  const lastVoiceErrorRef = useRef<{ code?: number; message: string } | null>(null);
 
   const lead = leads[leadIndex];
   const attempt = attempts[lead.id] ?? lead.attempt;
@@ -69,6 +79,15 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     const timer = window.setInterval(() => setCallSeconds((current) => current + 1), 1000);
     return () => window.clearInterval(timer);
   }, [callPhase]);
+
+  useEffect(() => {
+    return () => {
+      activeCallRef.current?.disconnect();
+      deviceRef.current?.destroy();
+      activeCallRef.current = null;
+      deviceRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -92,14 +111,99 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     return callbackLead ? `${callbackLead.callback} — ${callbackLead.name}` : "Nenhum retorno pendente";
   }, []);
 
-  function startCall() {
+  async function getVoiceDevice() {
+    if (deviceRef.current) return deviceRef.current;
+
+    const { token } = await onTargetApi.voiceToken(SDR_VOICE_IDENTITY);
+    const device = new Device(token, {
+      closeProtection: "Existe uma ligação em andamento. Deseja mesmo sair?",
+      enableImprovedSignalingErrorPrecision: true,
+      tokenRefreshMs: 60_000,
+    });
+
+    device.on("tokenWillExpire", async () => {
+      try {
+        const refreshed = await onTargetApi.voiceToken(SDR_VOICE_IDENTITY);
+        device.updateToken(refreshed.token);
+      } catch {
+        setToast("Não foi possível renovar a sessão de telefonia. Finalize a chamada e tente novamente.");
+      }
+    });
+    device.on("error", (error) => {
+      console.error("Twilio Device error", error);
+      lastVoiceErrorRef.current = { code: error.code, message: error.message };
+      setToast(`Telefonia indisponível (${error.code}): ${error.message}`);
+    });
+
+    deviceRef.current = device;
+    return device;
+  }
+
+  async function startCall() {
+    if (callPhase !== "idle" || startingCallRef.current) return;
+    startingCallRef.current = true;
+    cancelRequestedRef.current = false;
+    lastVoiceErrorRef.current = null;
     setCallSeconds(0);
     setSelectedResult(null);
     setCallPhase("calling");
-    window.setTimeout(() => setCallPhase("active"), 1200);
+
+    try {
+      const device = await getVoiceDevice();
+      const callRecord = await onTargetApi.createCall({
+        leadId: lead.backendId,
+        sdrId: SDR_ID,
+        to: lead.phoneE164,
+      });
+      const call = await device.connect({
+        params: { To: callRecord.to, CallId: callRecord.id },
+      });
+      activeCallRef.current = call;
+
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        activeCallRef.current = null;
+        setCallPhase("ended");
+      };
+
+      call.on("ringing", () => setCallPhase("calling"));
+      call.on("accept", () => {
+        setCallSeconds(0);
+        setCallPhase("active");
+      });
+      call.on("disconnect", finish);
+      call.on("cancel", finish);
+      call.on("error", (error) => {
+        console.error("Twilio Call error", error);
+        setToast(`Não foi possível completar a ligação: ${error.message}`);
+        finish();
+      });
+      if (cancelRequestedRef.current) call.disconnect();
+    } catch (error) {
+      console.error("Unable to start Twilio call", error ?? "Device connection aborted");
+      activeCallRef.current = null;
+      setCallPhase(cancelRequestedRef.current ? "ended" : "idle");
+      if (!cancelRequestedRef.current) {
+        const voiceError = lastVoiceErrorRef.current;
+        setToast(
+          voiceError
+            ? `Telefonia indisponível${voiceError.code ? ` (${voiceError.code})` : ""}: ${voiceError.message}`
+            : error instanceof Error
+              ? error.message
+              : "Não foi possível iniciar a ligação.",
+        );
+      }
+    } finally {
+      startingCallRef.current = false;
+    }
   }
 
   function endCall() {
+    cancelRequestedRef.current = true;
+    activeCallRef.current?.disconnect();
+    activeCallRef.current = null;
     setCallPhase("ended");
   }
 
@@ -115,6 +219,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     setCallSeconds(0);
     setSelectedResult(null);
     setSaving(false);
+    cancelRequestedRef.current = false;
     setCallbackDate("2026-08-09");
     setCallbackTime("18:00");
   }
@@ -249,12 +354,12 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
               </div>
               <div className="phone-actions">
                 {callPhase === "idle" && <button className="call-button" type="button" onClick={startCall}><span className="phone-dot" />Ligar com Onvox</button>}
-                {callPhase === "calling" && <button className="call-button calling" type="button" disabled><span className="calling-rings" />Conectando</button>}
+                {callPhase === "calling" && <button className="end-call-button" type="button" onClick={endCall}><span className="calling-rings" />Cancelar chamada</button>}
                 {callPhase === "active" && <button className="end-call-button" type="button" onClick={endCall}>Encerrar ligação</button>}
                 {callPhase === "ended" && <span className="call-complete"><i>✓</i> Ligação finalizada • {formatTimer(callSeconds)}</span>}
-                <div className="onvox-note" title="A chamada poderá ser iniciada diretamente pelo sistema através da API Onvox.">
+                <div className="onvox-note" title="A chamada é realizada no navegador através do Twilio Voice SDK.">
                   <span className="onvox-mark">O</span>
-                  <div><strong>Onvox Integration Ready</strong><small>Chamada integrada via API</small></div>
+                  <div><strong>Onvox Voice ativo</strong><small>Telefonia Twilio integrada</small></div>
                   <span className="info-glyph">i</span>
                 </div>
               </div>

@@ -7,9 +7,11 @@ export type LeadHistoryItem = {
 
 export type Lead = {
   id: number;
+  backendId: string;
   initials: string;
   name: string;
   phone: string;
+  phoneE164: string;
   store: string;
   campaign: string;
   source: string;
@@ -24,9 +26,11 @@ export type Lead = {
 export const leads: Lead[] = [
   {
     id: 1,
+    backendId: "lead-001",
     initials: "JP",
     name: "João Pereira",
-    phone: "(61) 99999-8877",
+    phone: "(11) 99245-1801",
+    phoneE164: "+5511992451801",
     store: "Brasal Volkswagen SIA",
     campaign: "Feirão Volkswagen Agosto",
     source: "Lead Site Volkswagen",
@@ -44,9 +48,11 @@ export const leads: Lead[] = [
   },
   {
     id: 2,
+    backendId: "lead-002",
     initials: "FC",
     name: "Fernanda Costa",
     phone: "(61) 98888-5512",
+    phoneE164: "+5561988885512",
     store: "Brasal Asa Norte",
     campaign: "Feirão Volkswagen Agosto",
     source: "Meta Ads",
@@ -77,9 +83,11 @@ export const leads: Lead[] = [
   },
   {
     id: 3,
+    backendId: "lead-009",
     initials: "RM",
     name: "Rafael Martins",
     phone: "(61) 97777-3049",
+    phoneE164: "+5561977773049",
     store: "Saga Volkswagen",
     campaign: "Campanha T-Cross 2026",
     source: "Google Search",

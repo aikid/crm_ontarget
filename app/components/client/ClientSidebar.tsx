@@ -4,6 +4,8 @@ import Link from "next/link";
 type ClientSidebarProps = {
   activeScreen: ClientScreen;
   onNavigate: (screen: ClientScreen) => void;
+  clientName: string;
+  onLogout: () => void;
 };
 
 const items = [
@@ -14,7 +16,7 @@ const items = [
   { id: "reports", label: "Relatórios", short: "RL", enabled: false },
 ];
 
-export default function ClientSidebar({ activeScreen, onNavigate }: ClientSidebarProps) {
+export default function ClientSidebar({ activeScreen, onNavigate, clientName, onLogout }: ClientSidebarProps) {
   return (
     <aside className="client-sidebar">
       <div className="client-brand">
@@ -24,7 +26,7 @@ export default function ClientSidebar({ activeScreen, onNavigate }: ClientSideba
 
       <div className="client-account-card">
         <span>CONTA ATIVA</span>
-        <strong>Grupo Brasal</strong>
+        <strong>{clientName}</strong>
         <small>Acesso executivo</small>
       </div>
 
@@ -56,7 +58,7 @@ export default function ClientSidebar({ activeScreen, onNavigate }: ClientSideba
       <div className="client-sidebar-footer">
         <button type="button"><span>?</span> Ajuda</button>
         <Link href="/"><span>↔</span> Visão OnTarget</Link>
-        <button type="button"><span>→</span> Sair</button>
+        <button type="button" onClick={onLogout}><span>→</span> Sair</button>
       </div>
     </aside>
   );

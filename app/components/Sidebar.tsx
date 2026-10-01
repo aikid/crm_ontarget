@@ -1,22 +1,26 @@
 import type { Screen } from "../page";
 import Link from "next/link";
+import type { SessionUser } from "../lib/ontarget-api";
 
 type SidebarProps = {
   activeScreen: Screen;
   onNavigate: (screen: Screen) => void;
+  user: SessionUser;
+  onLogout: () => void;
 };
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", short: "DB", enabled: true },
   { id: "sdr", label: "Operação SDR", short: "SD", enabled: true },
-  { id: "campaigns", label: "Campanhas", short: "CA", enabled: false },
+  { id: "admin", label: "Cadastros", short: "CD", enabled: true, managerOnly: true },
+  { id: "imports", label: "Importar leads", short: "IM", enabled: true, managerOnly: true },
   { id: "leads", label: "Leads", short: "LE", enabled: false },
   { id: "audit", label: "Auditoria", short: "AU", enabled: false },
   { id: "reports", label: "Relatórios", short: "RE", enabled: false },
   { id: "settings", label: "Configurações", short: "CO", enabled: false },
 ];
 
-export default function Sidebar({ activeScreen, onNavigate }: SidebarProps) {
+export default function Sidebar({ activeScreen, onNavigate, user, onLogout }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -31,7 +35,7 @@ export default function Sidebar({ activeScreen, onNavigate }: SidebarProps) {
 
       <div className="sidebar-label">ESPAÇO DE TRABALHO</div>
       <nav className="main-nav" aria-label="Navegação principal">
-        {navItems.map((item) => {
+        {navItems.filter((item) => !item.managerOnly || user.role === "GESTOR").map((item) => {
           const active = item.id === activeScreen;
           return (
             <button
@@ -70,13 +74,13 @@ export default function Sidebar({ activeScreen, onNavigate }: SidebarProps) {
       </Link>
 
       <div className="sidebar-user">
-        <span className="avatar avatar-dark">CM</span>
+        <span className="avatar avatar-dark">{user.initials}</span>
         <div>
-          <strong>Carlos Mendes</strong>
-          <span>Gestor</span>
+          <strong>{user.name}</strong>
+          <span>{user.role === "GESTOR" ? "Gestor" : "SDR"}</span>
         </div>
-        <button type="button" aria-label="Opções do usuário">
-          ···
+        <button type="button" aria-label="Sair" title="Sair" onClick={onLogout}>
+          Sair
         </button>
       </div>
     </aside>
