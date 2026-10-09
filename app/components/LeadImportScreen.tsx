@@ -8,6 +8,7 @@ import {
   type AdminStore,
   type ImportBatch,
 } from "../lib/ontarget-api";
+import LoadingOverlay from "./ui/LoadingOverlay";
 
 const errorLabels: Record<string, string> = {
   INVALID_ROW: "Dados inválidos",
@@ -109,6 +110,11 @@ export default function LeadImportScreen() {
 
   return (
     <div className="import-screen">
+      <LoadingOverlay
+        show={loading || uploading}
+        title={uploading ? "Importando sua base" : "Carregando importações"}
+        message={uploading ? "Validando as linhas e protegendo a integridade dos leads." : "Buscando campanhas e lotes recentes."}
+      />
       <header className="admin-header">
         <div><span>GESTÃO DE LEADS</span><h1>Importar leads</h1><p>Envie CSV ou XLSX no modelo fixo da OnTarget.</p></div>
         <a className="import-template-link" href="/modelo-importacao-leads.csv" download>Baixar modelo CSV</a>

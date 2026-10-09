@@ -9,18 +9,29 @@ type ClientSidebarProps = {
 };
 
 const items = [
-  { id: "dashboard", label: "Dashboard", short: "DB", enabled: true },
-  { id: "campaigns", label: "Campanhas", short: "CA", enabled: false },
-  { id: "results", label: "Resultados", short: "RE", enabled: true },
-  { id: "leads", label: "Leads", short: "LE", enabled: false },
-  { id: "reports", label: "Relatórios", short: "RL", enabled: false },
+  { id: "dashboard", label: "Visão geral", icon: "home", enabled: true },
+  { id: "campaigns", label: "Campanhas", icon: "campaign", enabled: false },
+  { id: "results", label: "Resultados", icon: "results", enabled: true },
+  { id: "leads", label: "Leads", icon: "leads", enabled: false },
+  { id: "reports", label: "Relatórios", icon: "reports", enabled: false },
 ];
+
+function ClientNavIcon({ name }: { name: string }) {
+  const paths: Record<string, React.ReactNode> = {
+    home: <><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5M9 21v-7h6v7"/></>,
+    campaign: <><path d="m3 11 18-5v12L3 13v-2Z"/><path d="M7 14v5a2 2 0 0 0 2 2h2v-6"/></>,
+    results: <><path d="M4 20V10m6 10V4m6 16v-7m6 7H2"/></>,
+    leads: <><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M16 3.3a4 4 0 0 1 0 7.4M22 21v-2a4 4 0 0 0-3-3.8"/></>,
+    reports: <><path d="M5 3h11l3 3v15H5V3Z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></>,
+  };
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
+}
 
 export default function ClientSidebar({ activeScreen, onNavigate, clientName, onLogout }: ClientSidebarProps) {
   return (
     <aside className="client-sidebar">
       <div className="client-brand">
-        <span className="brand-mark">O</span>
+        <span className="brand-mark"><i /></span>
         <div><strong>OnTarget</strong><span>Portal do Cliente</span></div>
       </div>
 
@@ -44,7 +55,7 @@ export default function ClientSidebar({ activeScreen, onNavigate, clientName, on
               aria-disabled={!item.enabled}
               title={!item.enabled ? "Disponível na próxima versão" : undefined}
             >
-              <span>{item.short}</span>{item.label}{!item.enabled && <i>•</i>}
+              <span><ClientNavIcon name={item.icon} /></span>{item.label}{!item.enabled && <i>•</i>}
             </button>
           );
         })}

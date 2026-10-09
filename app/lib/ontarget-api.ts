@@ -99,15 +99,61 @@ export type ApiLead = {
   origin: string;
   reason: string | null;
   storeId: string;
+  store: { id: string; name: string; shortName: string };
+  campaign: { id: string; name: string };
   attempts: number;
   lastContact: string;
   status: string;
   statusCode: string;
   history: Array<{ id: string; date: string; time: string; title: string; detail: string; result: string; durationSec: number | null }>;
+  callback: null | { scheduledAt: string; notes: string | null };
   appointment: null | { date: string; period: string; seller: string | null; notes: string | null };
   qualification: null | { type: string; date: string; notes: string | null };
   audit: { status: string; confidence?: number | null; evidence?: string | null; auditedAt?: string | null };
   recordingAvailable: boolean;
+  reservation: null | {
+    sdr: { id: string; name: string; initials: string };
+    reservedAt: string;
+    reservedUntil: string;
+  };
+};
+
+export type SdrCampaign = ApiCampaign & {
+  client: { id: string; name: string };
+  store: { id: string; name: string; shortName: string };
+};
+
+export type SdrCallback = {
+  id: string;
+  scheduledAt: string;
+  notes: string | null;
+  due: boolean;
+  lead: ApiLead;
+};
+
+export type OperationDashboard = {
+  period: { from: string; to: string };
+  kpis: {
+    worked: number;
+    attempts: number;
+    contacts: number;
+    qualified: number;
+    callbacks: number;
+    contactRate: number;
+    conversion: number;
+  };
+  live: { pending: number; activeSdrs: number; reserved: number; callbacks: number };
+  activity: Array<{ label: string; value: number }>;
+  outcomes: Array<{ code: string; label: string; color: string; value: number }>;
+  ranking: Array<{
+    id: string;
+    name: string;
+    initials: string;
+    attempts: number;
+    contacts: number;
+    qualified: number;
+    conversion: number;
+  }>;
 };
 
 function queryString(query?: Record<string, QueryValue>) {
@@ -155,12 +201,20 @@ export const onTargetApi = {
   stores: (clientId: string) => request<{ data: Array<{ id: string; clientId: string; name: string; shortName: string }> }>(`/api/clients/${clientId}/stores`),
   campaignDashboard: <T = unknown>(campaignId: string, storeId = "all") => request<T>(`/api/campaigns/${campaignId}/dashboard${queryString({ storeId })}`),
   campaignLeads: (campaignId: string, filters?: Record<string, QueryValue>) => request<{ data: ApiLead[]; pagination: { page: number; pageSize: number; total: number; pages: number } }>(`/api/campaigns/${campaignId}/leads${queryString(filters)}`),
+  operationDashboard: (filters?: Record<string, QueryValue>) => request<OperationDashboard>(`/api/operations/dashboard${queryString(filters)}`),
+  operationLeads: (filters?: Record<string, QueryValue>) => request<{ data: ApiLead[]; pagination: { page: number; pageSize: number; total: number; pages: number } }>(`/api/operations/leads${queryString(filters)}`),
   lead: (leadId: string) => request<ApiLead>(`/api/leads/${leadId}`),
-  nextLead: (campaignId: string) => request<ApiLead>(`/api/sdr/queue/next${queryString({ campaignId })}`),
-  sdrSummary: (sdrId: string) => request<{ worked: number; contacts: number; scheduled: number; callbacks: number }>(`/api/sdr/${sdrId}/summary`),
+  sdrCampaigns: () => request<{ data: SdrCampaign[] }>("/api/sdr/campaigns"),
+  claimNextLead: (campaignId: string) => request<ApiLead>("/api/sdr/queue/claim", { method: "POST", body: JSON.stringify({ campaignId }) }),
+  renewLead: (leadId: string) => request<ApiLead>("/api/sdr/queue/renew", { method: "POST", body: JSON.stringify({ leadId }) }),
+  releaseLead: (leadId: string) => request<void>("/api/sdr/queue/release", { method: "POST", body: JSON.stringify({ leadId }) }),
+  callbacksToday: (campaignId?: string) => request<{ data: SdrCallback[] }>(`/api/sdr/callbacks/today${queryString({ campaignId })}`),
+  claimCallback: (leadId: string) => request<ApiLead>(`/api/sdr/callbacks/${leadId}/claim`, { method: "POST" }),
+  sdrSummary: (sdrId: string) => request<{ worked: number; contacts: number; qualified: number; callbacks: number }>(`/api/sdr/${sdrId}/summary`),
   saveOutcome: (leadId: string, payload: Record<string, unknown>) => request<ApiLead>(`/api/leads/${leadId}/outcomes`, { method: "POST", body: JSON.stringify(payload) }),
-  voiceToken: (identity: string) => request<{ token: string; identity: string; expiresIn: number }>("/api/telephony/token", { method: "POST", body: JSON.stringify({ identity }) }),
-  createCall: (payload: { leadId: string; sdrId: string; to: string }) => request<{ id: string; to: string }>("/api/telephony/calls", { method: "POST", body: JSON.stringify(payload) }),
+  createCall: (payload: { leadId: string }) => request<{ id: string; to: string; status: "dialing" | "connected"; pbxCallId: string }>("/api/telephony/calls", { method: "POST", body: JSON.stringify(payload) }),
+  callStatus: (callId: string) => request<{ status: "dialing" | "connected" | "ended"; participantId: number | null; durationSec?: number }>(`/api/telephony/calls/${callId}/status`),
+  endCall: (callId: string) => request<void>(`/api/telephony/calls/${callId}/hangup`, { method: "POST" }),
   exportUrl: (campaignId: string, filters?: Record<string, QueryValue>) => `${API_URL}/api/campaigns/${campaignId}/leads.csv${queryString(filters)}`,
   admin: {
     clients: () => request<{ data: AdminClient[] }>("/api/admin/clients"),
