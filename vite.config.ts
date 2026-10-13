@@ -40,12 +40,16 @@ export default defineConfig(async ({ command }) => {
   process.env.WRANGLER_LOG_PATH ??= ".wrangler/wrangler.log";
   process.env.MINIFLARE_REGISTRY_PATH ??= ".wrangler/registry";
 
-  // Local Windows development runs on Vinext's Node runtime. The Cloudflare
-  // plugin starts workerd and can exit with `write EOF` on Windows.
-  const useCloudflare = command === "build" || process.platform !== "win32";
+  // Vercel runs the Vinext application through Nitro. Other production builds
+  // keep using the existing Cloudflare adapter, while local Windows development
+  // stays on Vinext's Node runtime to avoid workerd's `write EOF` failure.
+  const useNitro = process.env.VERCEL === "1" || Boolean(process.env.NITRO_PRESET);
+  const useCloudflare =
+    !useNitro && (command === "build" || process.platform !== "win32");
   const { cloudflare } = useCloudflare
     ? await import("@cloudflare/vite-plugin")
     : { cloudflare: null };
+  const { nitro } = useNitro ? await import("nitro/vite") : { nitro: null };
 
   return {
     server: isCodexSeatbeltSandbox
@@ -54,6 +58,7 @@ export default defineConfig(async ({ command }) => {
     plugins: [
       vinext(),
       sites(),
+      ...(nitro ? [nitro()] : []),
       ...(cloudflare ? [cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         config: localBindingConfig,

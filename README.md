@@ -89,8 +89,25 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 
 - `npm run dev`: start local development
 - `npm run build`: verify the vinext build output
+- `npm run build:vercel`: build the application with Nitro for Vercel
 - `npm test`: build the starter and verify its rendered loading skeleton
 - `npm run db:generate`: generate Drizzle migrations after schema changes
+
+## Deploy on Vercel
+
+Use `frontend` as the Vercel project's Root Directory. The committed
+`vercel.json` selects the generic Vite/Nitro deployment instead of Vercel's
+automatic Next.js preset, whose expected `.next` directory is not produced by
+Vinext.
+
+Leave the Vercel Output Directory setting empty. Nitro writes the complete
+Vercel Build Output API structure, including server functions, to
+`.vercel/output`; configuring a static output directory would discard those
+functions.
+
+Configure `NEXT_PUBLIC_API_URL` in Vercel for both Preview and Production with
+the public HTTPS URL of the backend. A localhost URL only works during local
+development.
 
 ## Learn More
 
