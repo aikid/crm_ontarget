@@ -1,11 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { onTargetApi, type SessionUser } from "../../lib/ontarget-api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AUTH_SESSION_INVALID_EVENT, onTargetApi, type SessionUser } from "../../lib/ontarget-api";
+import LoadingOverlay from "../ui/LoadingOverlay";
 
 type AuthContextValue = {
   user: SessionUser | null;
   loading: boolean;
+  loggingOut: boolean;
   login: (email: string, password: string) => Promise<SessionUser>;
   logout: () => Promise<void>;
 };
@@ -15,6 +17,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const logoutPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     onTargetApi.session()
@@ -23,19 +28,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const invalidateSession = () => {
+      setUser(null);
+      setLogoutError("");
+    };
+    window.addEventListener(AUTH_SESSION_INVALID_EVENT, invalidateSession);
+    return () => window.removeEventListener(AUTH_SESSION_INVALID_EVENT, invalidateSession);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const verifyIdentity = () => {
+      if (document.visibilityState !== "visible") return;
+      void onTargetApi.session().then((session) => setUser(session.user)).catch(() => undefined);
+    };
+    window.addEventListener("focus", verifyIdentity);
+    document.addEventListener("visibilitychange", verifyIdentity);
+    return () => {
+      window.removeEventListener("focus", verifyIdentity);
+      document.removeEventListener("visibilitychange", verifyIdentity);
+    };
+  }, [user]);
+
   const login = useCallback(async (email: string, password: string) => {
+    setLogoutError("");
     const session = await onTargetApi.login(email, password);
     setUser(session.user);
     return session.user;
   }, []);
 
   const logout = useCallback(async () => {
-    await onTargetApi.logout();
-    setUser(null);
+    if (logoutPromiseRef.current) return logoutPromiseRef.current;
+
+    const request = (async () => {
+      setLogoutError("");
+      setLoggingOut(true);
+      try {
+        await onTargetApi.logout();
+        setUser(null);
+      } catch {
+        setLogoutError("Não foi possível encerrar sua sessão. Verifique sua conexão e tente novamente.");
+      } finally {
+        setLoggingOut(false);
+        logoutPromiseRef.current = null;
+      }
+    })();
+
+    logoutPromiseRef.current = request;
+    return request;
   }, []);
 
-  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading, login, logout]);
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const value = useMemo(
+    () => ({ user, loading, loggingOut, login, logout }),
+    [user, loading, loggingOut, login, logout],
+  );
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <LoadingOverlay
+        show={loggingOut}
+        title="Encerrando sua sessão"
+        message="Aguarde enquanto protegemos seus dados e finalizamos o acesso."
+      />
+      {logoutError && (
+        <div className="logout-error-toast" role="alert" aria-live="assertive">
+          <span aria-hidden="true">!</span>
+          <div>
+            <strong>Não foi possível sair</strong>
+            <p>{logoutError}</p>
+          </div>
+          <button type="button" onClick={() => setLogoutError("")} aria-label="Fechar aviso">×</button>
+        </div>
+      )}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

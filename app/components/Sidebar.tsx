@@ -7,6 +7,7 @@ type SidebarProps = {
   onNavigate: (screen: Screen) => void;
   user: SessionUser;
   onLogout: () => void;
+  loggingOut: boolean;
 };
 
 const navItems = [
@@ -36,7 +37,7 @@ function NavIcon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-export default function Sidebar({ activeScreen, onNavigate, user, onLogout }: SidebarProps) {
+export default function Sidebar({ activeScreen, onNavigate, user, onLogout, loggingOut }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -90,8 +91,14 @@ export default function Sidebar({ activeScreen, onNavigate, user, onLogout }: Si
             <strong>{user.name}</strong>
             <span>{user.role === "GESTOR" ? "Gestor" : "SDR"}</span>
           </div>
-          <button type="button" aria-label="Sair" title="Sair" onClick={onLogout}>
-            <NavIcon name="logout" />
+          <button
+            type="button"
+            aria-label={loggingOut ? "Encerrando sessão" : "Sair"}
+            title={loggingOut ? "Encerrando sessão..." : "Sair"}
+            onClick={onLogout}
+            disabled={loggingOut}
+          >
+            {loggingOut ? <span className="logout-button-spinner" aria-hidden="true" /> : <NavIcon name="logout" />}
           </button>
         </div>
       </div>

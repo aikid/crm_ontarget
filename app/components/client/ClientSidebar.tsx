@@ -6,6 +6,7 @@ type ClientSidebarProps = {
   onNavigate: (screen: ClientScreen) => void;
   clientName: string;
   onLogout: () => void;
+  loggingOut: boolean;
 };
 
 const items = [
@@ -27,7 +28,7 @@ function ClientNavIcon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-export default function ClientSidebar({ activeScreen, onNavigate, clientName, onLogout }: ClientSidebarProps) {
+export default function ClientSidebar({ activeScreen, onNavigate, clientName, onLogout, loggingOut }: ClientSidebarProps) {
   return (
     <aside className="client-sidebar">
       <div className="client-brand">
@@ -69,7 +70,10 @@ export default function ClientSidebar({ activeScreen, onNavigate, clientName, on
       <div className="client-sidebar-footer">
         <button type="button"><span>?</span> Ajuda</button>
         <Link href="/"><span>↔</span> Visão OnTarget</Link>
-        <button type="button" onClick={onLogout}><span>→</span> Sair</button>
+        <button type="button" onClick={onLogout} disabled={loggingOut} aria-busy={loggingOut}>
+          <span>{loggingOut ? <i className="logout-button-spinner" aria-hidden="true" /> : "→"}</span>
+          {loggingOut ? "Saindo..." : "Sair"}
+        </button>
       </div>
     </aside>
   );

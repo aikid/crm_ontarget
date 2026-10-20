@@ -11,7 +11,7 @@ import ClientSidebar from "./ClientSidebar";
 export type ClientScreen = "dashboard" | "results";
 
 export default function ClientPortal() {
-  const { user, logout } = useAuth();
+  const { user, loggingOut, logout } = useAuth();
   const [screen, setScreen] = useState<ClientScreen>("dashboard");
   const [campaignId, setCampaignId] = useState(clientCampaigns[0].id);
   const [environmentOpen, setEnvironmentOpen] = useState(false);
@@ -21,7 +21,7 @@ export default function ClientPortal() {
 
   return (
     <main className="client-app-shell">
-      <ClientSidebar activeScreen={screen} onNavigate={setScreen} clientName={clientName} onLogout={() => void logout()} />
+      <ClientSidebar activeScreen={screen} onNavigate={setScreen} clientName={clientName} onLogout={() => void logout()} loggingOut={loggingOut} />
       <section className="client-main">
         <header className="client-header">
           <div className="client-header-context">

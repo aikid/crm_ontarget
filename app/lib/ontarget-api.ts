@@ -1,4 +1,5 @@
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://crm-ontarget-back.onrender.com").replace(/\/$/, "");
+export const AUTH_SESSION_INVALID_EVENT = "ontarget:session-invalid";
 
 type QueryValue = string | number | boolean | null | undefined;
 
@@ -16,6 +17,14 @@ export type SessionUser = {
 export type SessionResponse = { user: SessionUser; csrfToken: string };
 
 let csrfToken: string | null = null;
+let sessionUserId: string | null = null;
+
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 export type ApiCampaign = {
   id: string;
@@ -105,7 +114,16 @@ export type ApiLead = {
   lastContact: string;
   status: string;
   statusCode: string;
-  history: Array<{ id: string; date: string; time: string; title: string; detail: string; result: string; durationSec: number | null }>;
+  history: Array<{
+    id: string;
+    date: string;
+    time: string;
+    title: string;
+    detail: string;
+    result: string;
+    durationSec: number | null;
+    sdr: null | { id: string; name: string; initials: string };
+  }>;
   callback: null | { scheduledAt: string; notes: string | null };
   appointment: null | { date: string; period: string; seller: string | null; notes: string | null };
   qualification: null | { type: string; date: string; notes: string | null };
@@ -129,6 +147,13 @@ export type SdrCallback = {
   notes: string | null;
   due: boolean;
   lead: ApiLead;
+};
+
+export type SdrQueueSummary = {
+  total: number;
+  remaining: number;
+  available: number;
+  reserved: number;
 };
 
 export type OperationDashboard = {
@@ -170,20 +195,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const formData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
+    cache: init?.cache ?? "no-store",
     credentials: "include",
     headers: {
       ...(!formData ? { "Content-Type": "application/json" } : {}),
       ...(csrfToken && !["GET", "HEAD", "OPTIONS"].includes(method) ? { "X-CSRF-Token": csrfToken } : {}),
+      ...(sessionUserId ? { "X-OnTarget-Session-User": sessionUserId } : {}),
       ...init?.headers,
     },
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { error?: { message?: string } } | null;
-    throw new Error(body?.error?.message || `Erro ${response.status} ao consultar a API.`);
+    const error = new ApiError(body?.error?.message || `Erro ${response.status} ao consultar a API.`, response.status);
+    if (response.status === 401 && path !== "/api/auth/login") {
+      csrfToken = null;
+      sessionUserId = null;
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_SESSION_INVALID_EVENT));
+    }
+    throw error;
   }
   if (response.status === 204) return undefined as T;
   const body = await response.json() as T & { csrfToken?: string };
   if (body && typeof body === "object" && body.csrfToken) csrfToken = body.csrfToken;
+  if (body && typeof body === "object" && "user" in body) {
+    const sessionUser = (body as { user?: { id?: string } }).user;
+    if (sessionUser?.id) sessionUserId = sessionUser.id;
+  }
   return body;
 }
 
@@ -193,8 +230,14 @@ export const onTargetApi = {
     body: JSON.stringify({ email, password }),
   }),
   logout: async () => {
-    await request<void>("/api/auth/logout", { method: "POST" });
-    csrfToken = null;
+    try {
+      await request<void>("/api/auth/logout", { method: "POST" });
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    } finally {
+      csrfToken = null;
+      sessionUserId = null;
+    }
   },
   session: () => request<SessionResponse>("/api/auth/session"),
   campaigns: (clientId: string) => request<{ data: ApiCampaign[] }>(`/api/clients/${clientId}/campaigns`),
@@ -208,6 +251,7 @@ export const onTargetApi = {
   claimNextLead: (campaignId: string) => request<ApiLead>("/api/sdr/queue/claim", { method: "POST", body: JSON.stringify({ campaignId }) }),
   renewLead: (leadId: string) => request<ApiLead>("/api/sdr/queue/renew", { method: "POST", body: JSON.stringify({ leadId }) }),
   releaseLead: (leadId: string) => request<void>("/api/sdr/queue/release", { method: "POST", body: JSON.stringify({ leadId }) }),
+  queueSummary: (campaignId: string) => request<SdrQueueSummary>(`/api/sdr/queue/summary${queryString({ campaignId })}`),
   callbacksToday: (campaignId?: string) => request<{ data: SdrCallback[] }>(`/api/sdr/callbacks/today${queryString({ campaignId })}`),
   claimCallback: (leadId: string) => request<ApiLead>(`/api/sdr/callbacks/${leadId}/claim`, { method: "POST" }),
   sdrSummary: (sdrId: string) => request<{ worked: number; contacts: number; qualified: number; callbacks: number }>(`/api/sdr/${sdrId}/summary`),

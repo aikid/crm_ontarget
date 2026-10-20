@@ -15,7 +15,7 @@ export type Screen = "dashboard" | "sdr" | "admin" | "imports" | "leads";
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const { user, loading, logout } = useAuth();
+  const { user, loading, loggingOut, logout } = useAuth();
 
   if (loading) return <main className="auth-page app-boot-screen"><LoadingOverlay show title="Validando seu acesso" message="Conectando ao ambiente seguro da OnTarget." /></main>;
   if (!user) return <LoginScreen area="internal" />;
@@ -23,7 +23,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
-      <Sidebar activeScreen={screen} onNavigate={setScreen} user={user} onLogout={() => void logout()} />
+      <Sidebar activeScreen={screen} onNavigate={setScreen} user={user} onLogout={() => void logout()} loggingOut={loggingOut} />
       <section className="app-content">
         {screen === "dashboard" ? (
           <DashboardScreen canOpenSdr={user.role === "SDR"} onOpenSdr={() => setScreen("sdr")} />

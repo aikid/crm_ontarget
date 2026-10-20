@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "./auth/AuthProvider";
 import LoadingOverlay from "./ui/LoadingOverlay";
 import { ThreeCxAudioBridge } from "../lib/three-cx-audio";
+import { RingbackTone } from "../lib/ringback-tone";
 import {
   onTargetApi,
   type ApiLead,
   type SdrCallback,
   type SdrCampaign,
+  type SdrQueueSummary,
 } from "../lib/ontarget-api";
 
 type ResultType = "NO_ANSWER" | "INVALID_NUMBER" | "REFUSED" | "CONTACTED" | "QUALIFIED" | "NOT_QUALIFIED" | "CALLBACK";
@@ -52,12 +54,17 @@ function callbackTime(value: string) {
   }).format(new Date(value));
 }
 
+function plural(value: number, singular: string, pluralForm: string) {
+  return value === 1 ? singular : pluralForm;
+}
+
 export default function SdrScreen({ onBack }: SdrScreenProps) {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<SdrCampaign[]>([]);
   const [campaignId, setCampaignId] = useState("");
   const [lead, setLead] = useState<ApiLead | null>(null);
   const [callbacks, setCallbacks] = useState<SdrCallback[]>([]);
+  const [queueSummary, setQueueSummary] = useState<SdrQueueSummary | null>(null);
   const [metrics, setMetrics] = useState({ worked: 0, contacts: 0, qualified: 0, callbacks: 0 });
   const [loading, setLoading] = useState(true);
   const [queueEmpty, setQueueEmpty] = useState(false);
@@ -72,6 +79,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   const [callSeconds, setCallSeconds] = useState(0);
   const [callId, setCallId] = useState<string | null>(null);
   const audioBridgeRef = useRef<ThreeCxAudioBridge | null>(null);
+  const ringbackToneRef = useRef<RingbackTone | null>(null);
   const callIdRef = useRef<string | null>(null);
   const statusTimerRef = useRef<number | null>(null);
 
@@ -93,6 +101,10 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     setCallbacks(callbackResponse.data);
   }, [user]);
 
+  const refreshQueueSummary = useCallback(async (selectedCampaignId: string) => {
+    setQueueSummary(await onTargetApi.queueSummary(selectedCampaignId));
+  }, []);
+
   const claimNext = useCallback(async (selectedCampaignId: string) => {
     setLoading(true);
     setError("");
@@ -112,9 +124,10 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
         setError(message);
       }
     } finally {
+      await refreshQueueSummary(selectedCampaignId).catch(() => setQueueSummary(null));
       setLoading(false);
     }
-  }, []);
+  }, [refreshQueueSummary]);
 
   useEffect(() => {
     if (!user || user.role !== "SDR") {
@@ -175,6 +188,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
 
   useEffect(() => () => {
     if (statusTimerRef.current) window.clearTimeout(statusTimerRef.current);
+    ringbackToneRef.current?.stop();
     audioBridgeRef.current?.close();
     if (callIdRef.current) void onTargetApi.endCall(callIdRef.current).catch(() => undefined);
   }, []);
@@ -210,6 +224,9 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     setToast("");
     setCallPhase("calling");
     setCallSeconds(0);
+    const ringbackTone = new RingbackTone();
+    ringbackToneRef.current = ringbackTone;
+    ringbackTone.start();
     const bridge = new ThreeCxAudioBridge({
       onError: (message) => setToast(message),
       onEnded: () => finishCall(),
@@ -222,6 +239,8 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
       callIdRef.current = record.id;
       await monitorCall(record.id, bridge);
     } catch (cause) {
+      ringbackTone.stop();
+      ringbackToneRef.current = null;
       bridge.close();
       audioBridgeRef.current = null;
       setCallPhase("idle");
@@ -232,6 +251,8 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   function finishCall() {
     if (statusTimerRef.current) window.clearTimeout(statusTimerRef.current);
     statusTimerRef.current = null;
+    ringbackToneRef.current?.stop();
+    ringbackToneRef.current = null;
     audioBridgeRef.current?.close();
     audioBridgeRef.current = null;
     callIdRef.current = null;
@@ -242,6 +263,8 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     const status = await onTargetApi.callStatus(activeCallId);
     if (status.status === "ended") return finishCall();
     if (status.status === "connected") {
+      ringbackToneRef.current?.stop();
+      ringbackToneRef.current = null;
       setCallPhase("active");
       await bridge.connect(activeCallId);
     } else {
@@ -297,6 +320,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
       setQueueEmpty(false);
       setSelectedResult(null);
       setNotes("");
+      await refreshQueueSummary(campaignId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível iniciar o retorno.");
     }
@@ -335,7 +359,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
       </header>
 
       <section className="workflow-strip">
-        <div className="workflow-main"><span className="live-dot" /><strong>Fila FIFO ativa</strong><span>•</span><span>Reserva exclusiva por 15 minutos</span>{lead?.reservation && <><span>•</span><span>Expira em {reservationRemaining}</span></>}</div>
+        <div className="workflow-main"><span className="live-dot" /><strong>Fila FIFO ativa</strong>{queueSummary && <><span>•</span><span><strong>{queueSummary.available}</strong> {plural(queueSummary.available, "disponível", "disponíveis")} de {queueSummary.remaining} {plural(queueSummary.remaining, "restante", "restantes")}</span>{queueSummary.reserved > 0 && <><span>•</span><span>{queueSummary.reserved} em atendimento</span></>}</>}<span>•</span><span>Reserva exclusiva por 15 minutos</span>{lead?.reservation && <><span>•</span><span>Expira em {reservationRemaining}</span></>}</div>
         <div className="next-callback"><span className="clock-glyph">↻</span><div><small>PRÓXIMO RETORNO</small><strong>{nextCallback ? `${callbackTime(nextCallback.scheduledAt)} — ${nextCallback.lead.name}` : "Nenhum retorno hoje"}</strong></div></div>
       </section>
 
@@ -348,7 +372,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
           ) : !lead ? (
             <div className="sdr-empty-state">
               <strong>{queueEmpty ? "Fila concluída por enquanto" : "Nenhum lead em atendimento"}</strong>
-              <p>{callbacks.some((item) => item.due) ? "Há retornos disponíveis na coluna lateral." : "Não há leads livres nesta campanha neste momento."}</p>
+              <p>{callbacks.some((item) => item.due) ? "Há retornos disponíveis na coluna lateral." : queueSummary?.remaining ? `${queueSummary.remaining} ${plural(queueSummary.remaining, "lead restante", "leads restantes")}, mas nenhum está livre neste momento.` : "Não há leads livres nesta campanha neste momento."}</p>
               <button type="button" onClick={() => void claimNext(campaignId)}>Atualizar fila</button>
             </div>
           ) : (
@@ -397,7 +421,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
         <aside className="sdr-side-column">
           <article className="side-card history-card">
             <div className="side-card-heading"><div><span className="side-icon">H</span><div><h3>Histórico</h3><p>Tentativas deste lead</p></div></div></div>
-            <div className={`history-timeline ${!lead?.history.length ? "empty" : ""}`}>{!lead?.history.length ? <div className="empty-history"><span>+</span><strong>Sem tentativas anteriores</strong><p>O primeiro resultado aparecerá aqui.</p></div> : lead.history.map((item) => <div className="history-item neutral" key={item.id}><i /><span>{item.date} • {item.time}</span><strong>{item.title}</strong><p>{item.result}</p><small>{item.detail}</small></div>)}</div>
+            <div className={`history-timeline ${!lead?.history.length ? "empty" : ""}`}>{!lead?.history.length ? <div className="empty-history"><span>+</span><strong>Sem tentativas anteriores</strong><p>O primeiro resultado aparecerá aqui.</p></div> : lead.history.map((item) => <div className="history-item neutral" key={item.id}><i /><span>{item.date} • {item.time}</span><strong>{item.title}</strong><p>{item.result} • {item.sdr?.name || "SDR não identificado"}</p><small>{item.detail}</small></div>)}</div>
           </article>
 
           <article className="side-card attempts-card">

@@ -29,7 +29,7 @@ test("renderiza a aplicação protegida sem expor conteúdo antes da sessão", a
 });
 
 test("mantém sessão, credenciais e CSRF centralizados no cliente da API", async () => {
-  const [layout, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, threeCxAudio] = await Promise.all([
+  const [layout, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, threeCxAudio, ringbackTone] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/AuthProvider.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/LoginScreen.tsx", import.meta.url), "utf8"),
@@ -42,10 +42,17 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
     readFile(new URL("../app/components/LeadImportScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ui/LoadingOverlay.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/three-cx-audio.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/ringback-tone.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(layout, /<AuthProvider>\{children\}<\/AuthProvider>/);
   assert.match(provider, /onTargetApi\.session\(\)/);
+  assert.match(provider, /loggingOut/);
+  assert.match(provider, /Encerrando sua sessão/);
+  assert.match(provider, /logoutPromiseRef/);
+  assert.match(provider, /logout-error-toast/);
+  assert.match(provider, /AUTH_SESSION_INVALID_EVENT/);
+  assert.match(provider, /visibilitychange/);
   assert.match(login, /autoComplete="current-password"/);
   assert.match(login, /Bem-vindo de volta/);
   assert.match(login, /aria-label=\{showPassword \? "Ocultar senha" : "Mostrar senha"\}/);
@@ -53,16 +60,25 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(styles, /@media \(max-width: 520px\)/);
   assert.match(styles, /\.auth-submit:disabled/);
   assert.match(api, /credentials:\s*"include"/);
+  assert.match(api, /cache:\s*init\?\.cache \?\? "no-store"/);
+  assert.match(api, /X-OnTarget-Session-User/);
+  assert.match(api, /sessionUserId/);
   assert.match(api, /"X-CSRF-Token"/);
   assert.match(api, /\/api\/auth\/login/);
   assert.match(api, /\/api\/auth\/logout/);
   assert.match(api, /\/api\/sdr\/queue\/claim/);
   assert.match(api, /\/api\/sdr\/queue\/renew/);
+  assert.match(api, /\/api\/sdr\/queue\/summary/);
   assert.match(api, /\/api\/sdr\/callbacks\/today/);
   assert.doesNotMatch(api, /\/api\/sdr\/queue\/next/);
   assert.match(sdr, /Retornos de hoje/);
   assert.match(sdr, /Reserva exclusiva por 15 minutos/);
+  assert.match(sdr, /queueSummary\.available/);
+  assert.match(sdr, /item\.sdr\?\.name/);
   assert.match(sdr, /ThreeCxAudioBridge/);
+  assert.match(sdr, /RingbackTone/);
+  assert.match(sdr, /ringbackTone\.start\(\)/);
+  assert.match(sdr, /ringbackToneRef\.current\?\.stop\(\)/);
   assert.doesNotMatch(sdr, /@twilio|new Device/);
   assert.doesNotMatch(sdr, /id: "scheduled"|id: "Agendado"/);
   assert.match(api, /\/api\/operations\/dashboard/);
@@ -85,10 +101,15 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(loadingOverlay, /role="status"/);
   assert.match(loadingOverlay, /aria-busy="true"/);
   assert.match(styles, /\.loading-overlay/);
+  assert.match(styles, /\.logout-error-toast/);
+  assert.match(styles, /\.logout-button-spinner/);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(dashboard, /dashboard-overview-grid/);
   assert.match(dashboard, /sdr-welcome-hero/);
   assert.match(threeCxAudio, /AudioWorkletNode/);
   assert.match(threeCxAudio, /8000/);
   assert.match(threeCxAudio, /WebSocket/);
+  assert.match(ringbackTone, /RING_CYCLE_MS = 5_000/);
+  assert.match(ringbackTone, /425/);
+  assert.match(ringbackTone, /context\.close/);
 });

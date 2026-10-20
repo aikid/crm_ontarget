@@ -55,7 +55,7 @@ function AuthAside({ area }: Pick<Props, "area">) {
 }
 
 export default function LoginScreen({ area, unauthorizedUser }: Props) {
-  const { login, logout } = useAuth();
+  const { login, logout, loggingOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -96,8 +96,8 @@ export default function LoginScreen({ area, unauthorizedUser }: Props) {
               <Link className="auth-primary-link" href={unauthorizedUser.role === "CLIENT" ? "/cliente" : "/"}>
                 Ir para o ambiente correto <span aria-hidden="true">→</span>
               </Link>
-              <button className="auth-secondary-button" type="button" onClick={() => void logout()}>
-                Entrar com outra conta
+              <button className="auth-secondary-button" type="button" onClick={() => void logout()} disabled={loggingOut}>
+                {loggingOut ? "Encerrando sessão..." : "Entrar com outra conta"}
               </button>
             </section>
           ) : (
