@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "./auth/AuthProvider";
 import LoadingOverlay from "./ui/LoadingOverlay";
-import { ThreeCxAudioBridge } from "../lib/three-cx-audio";
+import { AsteriskSipClient } from "../lib/asterisk-sip";
 import { RingbackTone } from "../lib/ringback-tone";
 import {
   onTargetApi,
@@ -78,7 +78,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   const [callPhase, setCallPhase] = useState<CallPhase>("idle");
   const [callSeconds, setCallSeconds] = useState(0);
   const [callId, setCallId] = useState<string | null>(null);
-  const audioBridgeRef = useRef<ThreeCxAudioBridge | null>(null);
+  const sipClientRef = useRef<AsteriskSipClient | null>(null);
   const ringbackToneRef = useRef<RingbackTone | null>(null);
   const callIdRef = useRef<string | null>(null);
   const statusTimerRef = useRef<number | null>(null);
@@ -189,8 +189,8 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   useEffect(() => () => {
     if (statusTimerRef.current) window.clearTimeout(statusTimerRef.current);
     ringbackToneRef.current?.stop();
-    audioBridgeRef.current?.close();
-    if (callIdRef.current) void onTargetApi.endCall(callIdRef.current).catch(() => undefined);
+    void sipClientRef.current?.dispose();
+    if (callIdRef.current) void onTargetApi.endAsteriskCall(callIdRef.current).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -205,6 +205,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   }, []);
 
   async function changeCampaign(nextCampaignId: string) {
+    if (["calling", "active"].includes(callPhase)) await endCall();
     if (lead) {
       try { await onTargetApi.releaseLead(lead.id); } catch { /* a reserva pode já ter expirado */ }
     }
@@ -213,6 +214,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   }
 
   async function leaveOperation() {
+    if (["calling", "active"].includes(callPhase)) await endCall();
     if (lead) {
       try { await onTargetApi.releaseLead(lead.id); } catch { /* saída continua mesmo se a reserva expirou */ }
     }
@@ -227,22 +229,38 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     const ringbackTone = new RingbackTone();
     ringbackToneRef.current = ringbackTone;
     ringbackTone.start();
-    const bridge = new ThreeCxAudioBridge({
-      onError: (message) => setToast(message),
-      onEnded: () => finishCall(),
-    });
-    audioBridgeRef.current = bridge;
+    const sipClient = sipClientRef.current || new AsteriskSipClient();
+    sipClientRef.current = sipClient;
+    let createdCallId: string | null = null;
     try {
-      await bridge.prepare();
-      const record = await onTargetApi.createCall({ leadId: lead.id });
+      await sipClient.prepareMicrophone();
+      const sipSession = await onTargetApi.asteriskSipSession();
+      await sipClient.connect(sipSession);
+      const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const record = await onTargetApi.createAsteriskCall({ leadId: lead.id }, idempotencyKey);
+      createdCallId = record.id;
       setCallId(record.id);
       callIdRef.current = record.id;
-      await monitorCall(record.id, bridge);
+      await sipClient.startCall(sipSession, {
+        onEstablishing: () => setCallPhase("calling"),
+        onEstablished: () => {
+          ringbackToneRef.current?.stop();
+          ringbackToneRef.current = null;
+        },
+        onTerminated: () => {
+          if (callIdRef.current) finishCall();
+        },
+        onError: (message) => setToast(message),
+      });
+      if (sipSession.shared) setToast("Ramal compartilhado de POC ativo; use apenas um SDR por vez.");
+      await monitorCall(record.id);
     } catch (cause) {
       ringbackTone.stop();
       ringbackToneRef.current = null;
-      bridge.close();
-      audioBridgeRef.current = null;
+      await sipClient.endCall().catch(() => undefined);
+      if (createdCallId) await onTargetApi.endAsteriskCall(createdCallId).catch(() => undefined);
+      setCallId(null);
+      callIdRef.current = null;
       setCallPhase("idle");
       setToast(cause instanceof Error ? cause.message : "Não foi possível iniciar a ligação.");
     }
@@ -253,37 +271,46 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     statusTimerRef.current = null;
     ringbackToneRef.current?.stop();
     ringbackToneRef.current = null;
-    audioBridgeRef.current?.close();
-    audioBridgeRef.current = null;
+    void sipClientRef.current?.endCall();
     callIdRef.current = null;
     setCallPhase("ended");
   }
 
-  async function monitorCall(activeCallId: string, bridge: ThreeCxAudioBridge): Promise<void> {
-    const status = await onTargetApi.callStatus(activeCallId);
-    if (status.status === "ended") return finishCall();
+  async function monitorCall(activeCallId: string): Promise<void> {
+    const status = await onTargetApi.asteriskCall(activeCallId);
+    if (["ended", "failed", "canceled", "busy", "no_answer", "rejected"].includes(status.status)) {
+      if (!["ended", "canceled"].includes(status.status)) {
+        const labels: Record<string, string> = {
+          busy: "O número está ocupado.",
+          no_answer: "A ligação não foi atendida.",
+          rejected: "A ligação foi recusada.",
+          failed: status.disconnectReason || "A ligação não pôde ser completada.",
+        };
+        setToast(labels[status.status] || "Ligação encerrada.");
+      }
+      return finishCall();
+    }
     if (status.status === "connected") {
       ringbackToneRef.current?.stop();
       ringbackToneRef.current = null;
       setCallPhase("active");
-      await bridge.connect(activeCallId);
     } else {
       setCallPhase("calling");
     }
     statusTimerRef.current = window.setTimeout(() => {
-      void monitorCall(activeCallId, bridge).catch((cause) => {
+      void monitorCall(activeCallId).catch((cause) => {
         setToast(cause instanceof Error ? cause.message : "Falha ao acompanhar a ligação.");
         finishCall();
       });
-    }, 500);
+    }, 750);
   }
 
   async function endCall() {
     const activeCallId = callIdRef.current;
     finishCall();
     if (!activeCallId) return;
-    try { await onTargetApi.endCall(activeCallId); }
-    catch (cause) { setToast(cause instanceof Error ? cause.message : "A ligação foi fechada localmente, mas a 3CX não confirmou o encerramento."); }
+    try { await onTargetApi.endAsteriskCall(activeCallId); }
+    catch (cause) { setToast(cause instanceof Error ? cause.message : "A ligação foi fechada localmente, mas o Asterisk não confirmou o encerramento."); }
   }
 
   async function saveOutcome() {
@@ -398,7 +425,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
                     {callPhase === "idle" && <button className="call-button" type="button" onClick={() => void startCall()}><span className="phone-dot" />Ligar com Onvox</button>}
                     {["calling", "active"].includes(callPhase) && <button className="end-call-button" type="button" onClick={() => void endCall()}>{callPhase === "calling" ? "Cancelar chamada" : "Encerrar ligação"}</button>}
                     {callPhase === "ended" && <span className="call-complete"><i>✓</i> Ligação finalizada • {formatTimer(callSeconds)}</span>}
-                    <div className="onvox-note"><span className="onvox-mark">O</span><div><strong>3CX + OverTele</strong><small>Áudio seguro pelo backend</small></div></div>
+                    <div className="onvox-note"><span className="onvox-mark">O</span><div><strong>Asterisk + OverTele</strong><small>Áudio WebRTC seguro</small></div></div>
                   </div>
                 </div>
               </article>

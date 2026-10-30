@@ -1,0 +1,163 @@
+import { Inviter, Registerer, RegistererState, SessionState, UserAgent } from "sip.js";
+
+export type AsteriskSipSession = {
+  webSocketUrl: string;
+  sipDomain: string;
+  extension: string;
+  password: string;
+  targetExtension: string;
+  shared: boolean;
+};
+
+type CallCallbacks = {
+  onEstablishing?: () => void;
+  onEstablished?: () => void;
+  onTerminated?: () => void;
+  onError?: (message: string) => void;
+};
+
+export class AsteriskSipClient {
+  private agent: UserAgent | null = null;
+  private registerer: Registerer | null = null;
+  private inviter: Inviter | null = null;
+  private registered = false;
+  private fingerprint = "";
+  private remoteAudio: HTMLAudioElement | null = null;
+
+  async prepareMicrophone() {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error("O navegador não permite acesso ao microfone.");
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    stream.getTracks().forEach((track) => track.stop());
+  }
+
+  async connect(config: AsteriskSipSession) {
+    const fingerprint = `${config.webSocketUrl}|${config.sipDomain}|${config.extension}`;
+    if (this.agent && this.registered && this.fingerprint === fingerprint) return;
+    await this.dispose();
+
+    const uri = UserAgent.makeURI(`sip:${config.extension}@${config.sipDomain}`);
+    if (!uri) throw new Error("Configuração do ramal SIP inválida.");
+    const agent = new UserAgent({
+      uri,
+      transportOptions: { server: config.webSocketUrl },
+      authorizationUsername: config.extension,
+      authorizationPassword: config.password,
+      displayName: `OnTarget ${config.extension}`,
+      logLevel: "warn",
+      delegate: {
+        onDisconnect: () => { this.registered = false; },
+      },
+    });
+    const registerer = new Registerer(agent, { expires: 300 });
+    this.agent = agent;
+    this.registerer = registerer;
+    this.fingerprint = fingerprint;
+
+    await agent.start();
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        registerer.stateChange.removeListener(listener);
+        reject(new Error("O Asterisk não confirmou o registro do ramal."));
+      }, 12_000);
+      const listener = (state: RegistererState) => {
+        if (state === RegistererState.Registered) {
+          window.clearTimeout(timeout);
+          registerer.stateChange.removeListener(listener);
+          this.registered = true;
+          resolve();
+        } else if (state === RegistererState.Terminated) {
+          window.clearTimeout(timeout);
+          registerer.stateChange.removeListener(listener);
+          reject(new Error("O registro SIP foi encerrado pelo Asterisk."));
+        }
+      };
+      registerer.stateChange.addListener(listener);
+      void registerer.register().catch((error) => {
+        window.clearTimeout(timeout);
+        registerer.stateChange.removeListener(listener);
+        reject(error);
+      });
+    });
+  }
+
+  async startCall(config: AsteriskSipSession, callbacks: CallCallbacks = {}) {
+    await this.connect(config);
+    if (!this.agent || !this.registered) throw new Error("Ramal SIP não registrado.");
+    if (this.inviter) throw new Error("Já existe uma chamada SIP em andamento.");
+    const target = UserAgent.makeURI(`sip:${config.targetExtension}@${config.sipDomain}`);
+    if (!target) throw new Error("Extensão interna de telefonia inválida.");
+
+    const inviter = new Inviter(this.agent, target, {
+      sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } },
+    });
+    this.inviter = inviter;
+    inviter.stateChange.addListener((state) => {
+      if (state === SessionState.Establishing) callbacks.onEstablishing?.();
+      if (state === SessionState.Established) {
+        void this.attachRemoteAudio(inviter).catch((error) => callbacks.onError?.(error.message));
+        callbacks.onEstablished?.();
+      }
+      if (state === SessionState.Terminated) {
+        this.clearRemoteAudio();
+        if (this.inviter === inviter) this.inviter = null;
+        callbacks.onTerminated?.();
+      }
+    });
+    try {
+      await inviter.invite();
+    } catch (error) {
+      if (this.inviter === inviter) this.inviter = null;
+      throw error;
+    }
+  }
+
+  private async attachRemoteAudio(inviter: Inviter) {
+    const handler = inviter.sessionDescriptionHandler as { peerConnection?: RTCPeerConnection } | undefined;
+    const peerConnection = handler?.peerConnection;
+    if (!peerConnection) throw new Error("Canal de áudio WebRTC indisponível.");
+    const stream = new MediaStream();
+    for (const receiver of peerConnection.getReceivers()) {
+      if (receiver.track?.kind === "audio") stream.addTrack(receiver.track);
+    }
+    const audio = this.remoteAudio || new Audio();
+    audio.autoplay = true;
+    audio.playsInline = true;
+    audio.srcObject = stream;
+    this.remoteAudio = audio;
+    await audio.play();
+  }
+
+  async endCall() {
+    const inviter = this.inviter;
+    if (!inviter) return;
+    try {
+      if (inviter.state === SessionState.Established) await inviter.bye();
+      else if (inviter.state === SessionState.Establishing) await inviter.cancel();
+    } finally {
+      this.clearRemoteAudio();
+      if (this.inviter === inviter) this.inviter = null;
+    }
+  }
+
+  private clearRemoteAudio() {
+    if (!this.remoteAudio) return;
+    this.remoteAudio.pause();
+    this.remoteAudio.srcObject = null;
+    this.remoteAudio = null;
+  }
+
+  async dispose() {
+    await this.endCall().catch(() => undefined);
+    const registerer = this.registerer;
+    const agent = this.agent;
+    this.registerer = null;
+    this.agent = null;
+    this.registered = false;
+    this.fingerprint = "";
+    if (registerer) await registerer.unregister().catch(() => undefined);
+    if (agent) await agent.stop().catch(() => undefined);
+    this.clearRemoteAudio();
+  }
+}

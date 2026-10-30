@@ -156,6 +156,35 @@ export type SdrQueueSummary = {
   reserved: number;
 };
 
+export type AsteriskSipSession = {
+  webSocketUrl: string;
+  sipDomain: string;
+  extension: string;
+  password: string;
+  targetExtension: string;
+  shared: boolean;
+};
+
+export type AsteriskCall = {
+  id: string;
+  leadId: string;
+  status: "ready" | "dialing" | "ringing" | "connected" | "reconciling" | "ended" | "failed" | "canceled" | "busy" | "no_answer" | "rejected";
+  technicalStatus: string;
+  destinationMasked: string;
+  sipExtension: string;
+  requestedAt: string;
+  dialingAt: string | null;
+  ringingAt: string | null;
+  answeredAt: string | null;
+  endedAt: string | null;
+  durationSec: number | null;
+  disconnectReason: string | null;
+  q850Cause: number | null;
+  recording: null | { status: string; name: string };
+  reused?: boolean;
+  nextStep?: string;
+};
+
 export type OperationDashboard = {
   period: { from: string; to: string };
   kpis: {
@@ -256,6 +285,14 @@ export const onTargetApi = {
   claimCallback: (leadId: string) => request<ApiLead>(`/api/sdr/callbacks/${leadId}/claim`, { method: "POST" }),
   sdrSummary: (sdrId: string) => request<{ worked: number; contacts: number; qualified: number; callbacks: number }>(`/api/sdr/${sdrId}/summary`),
   saveOutcome: (leadId: string, payload: Record<string, unknown>) => request<ApiLead>(`/api/leads/${leadId}/outcomes`, { method: "POST", body: JSON.stringify(payload) }),
+  asteriskSipSession: () => request<AsteriskSipSession>("/api/telephony/asterisk/session"),
+  createAsteriskCall: (payload: { leadId: string }, idempotencyKey: string) => request<AsteriskCall>("/api/telephony/asterisk/calls", {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(payload),
+  }),
+  asteriskCall: (callId: string) => request<AsteriskCall>(`/api/telephony/asterisk/calls/${callId}`),
+  endAsteriskCall: (callId: string) => request<AsteriskCall>(`/api/telephony/asterisk/calls/${callId}/hangup`, { method: "POST" }),
   createCall: (payload: { leadId: string }) => request<{ id: string; to: string; status: "dialing" | "connected"; pbxCallId: string }>("/api/telephony/calls", { method: "POST", body: JSON.stringify(payload) }),
   callStatus: (callId: string) => request<{ status: "dialing" | "connected" | "ended"; participantId: number | null; durationSec?: number }>(`/api/telephony/calls/${callId}/status`),
   endCall: (callId: string) => request<void>(`/api/telephony/calls/${callId}/hangup`, { method: "POST" }),
