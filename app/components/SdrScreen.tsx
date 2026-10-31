@@ -60,6 +60,8 @@ function plural(value: number, singular: string, pluralForm: string) {
 
 export default function SdrScreen({ onBack }: SdrScreenProps) {
   const { user } = useAuth();
+  const userId = user?.id;
+  const userRole = user?.role;
   const [campaigns, setCampaigns] = useState<SdrCampaign[]>([]);
   const [campaignId, setCampaignId] = useState("");
   const [lead, setLead] = useState<ApiLead | null>(null);
@@ -82,6 +84,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   const ringbackToneRef = useRef<RingbackTone | null>(null);
   const callIdRef = useRef<string | null>(null);
   const statusTimerRef = useRef<number | null>(null);
+  const claimingLeadRef = useRef(false);
 
   const campaign = useMemo(() => campaigns.find((item) => item.id === campaignId) || null, [campaignId, campaigns]);
   const attemptNumber = lead ? Math.min(3, lead.attempts + 1) : 1;
@@ -92,20 +95,22 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   );
 
   const refreshSideData = useCallback(async (selectedCampaignId: string) => {
-    if (!user) return;
+    if (!userId) return;
     const [summary, callbackResponse] = await Promise.all([
-      onTargetApi.sdrSummary(user.id),
+      onTargetApi.sdrSummary(userId),
       onTargetApi.callbacksToday(selectedCampaignId),
     ]);
     setMetrics(summary);
     setCallbacks(callbackResponse.data);
-  }, [user]);
+  }, [userId]);
 
   const refreshQueueSummary = useCallback(async (selectedCampaignId: string) => {
     setQueueSummary(await onTargetApi.queueSummary(selectedCampaignId));
   }, []);
 
   const claimNext = useCallback(async (selectedCampaignId: string) => {
+    if (claimingLeadRef.current) return;
+    claimingLeadRef.current = true;
     setLoading(true);
     setError("");
     setQueueEmpty(false);
@@ -126,11 +131,12 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     } finally {
       await refreshQueueSummary(selectedCampaignId).catch(() => setQueueSummary(null));
       setLoading(false);
+      claimingLeadRef.current = false;
     }
   }, [refreshQueueSummary]);
 
   useEffect(() => {
-    if (!user || user.role !== "SDR") {
+    if (!userId || userRole !== "SDR") {
       return;
     }
     let active = true;
@@ -148,10 +154,10 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
         }
       });
     return () => { active = false; };
-  }, [user]);
+  }, [userId, userRole]);
 
   useEffect(() => {
-    if (!campaignId || !user || user.role !== "SDR") return;
+    if (!campaignId || !userId || userRole !== "SDR") return;
     const timer = window.setTimeout(() => {
       void Promise.all([refreshSideData(campaignId), claimNext(campaignId)]).catch((cause) => {
         setError(cause instanceof Error ? cause.message : "Não foi possível iniciar a operação.");
@@ -159,7 +165,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
       });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [campaignId, claimNext, refreshSideData, user]);
+  }, [campaignId, claimNext, refreshSideData, userId, userRole]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock((value) => value + 1), 1_000);

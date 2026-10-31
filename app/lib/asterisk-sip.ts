@@ -16,6 +16,23 @@ type CallCallbacks = {
   onError?: (message: string) => void;
 };
 
+function mediaErrorMessage(error: unknown) {
+  const name = error instanceof DOMException ? error.name : "";
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return "Nenhum microfone foi encontrado. Conecte ou habilite um dispositivo de entrada de áudio e tente novamente.";
+  }
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    return "O acesso ao microfone foi bloqueado. Permita o microfone nas configurações do navegador.";
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return "O microfone está sendo usado ou bloqueado por outro aplicativo. Feche o outro aplicativo e tente novamente.";
+  }
+  if (name === "OverconstrainedError") {
+    return "O microfone disponível não atende à configuração de áudio solicitada.";
+  }
+  return error instanceof Error ? error.message : "Não foi possível acessar o microfone.";
+}
+
 export class AsteriskSipClient {
   private agent: UserAgent | null = null;
   private registerer: Registerer | null = null;
@@ -26,10 +43,20 @@ export class AsteriskSipClient {
 
   async prepareMicrophone() {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("O navegador não permite acesso ao microfone.");
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-    stream.getTracks().forEach((track) => track.stop());
+    if (navigator.mediaDevices.enumerateDevices) {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      if (!devices.some((device) => device.kind === "audioinput")) {
+        throw new Error("Nenhum microfone foi encontrado. Conecte ou habilite um dispositivo de entrada de áudio e tente novamente.");
+      }
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+      stream.getTracks().forEach((track) => track.stop());
+    } catch (error) {
+      throw new Error(mediaErrorMessage(error));
+    }
   }
 
   async connect(config: AsteriskSipSession) {
@@ -109,7 +136,7 @@ export class AsteriskSipClient {
       await inviter.invite();
     } catch (error) {
       if (this.inviter === inviter) this.inviter = null;
-      throw error;
+      throw new Error(mediaErrorMessage(error));
     }
   }
 
