@@ -29,7 +29,7 @@ test("renderiza a aplicação protegida sem expor conteúdo antes da sessão", a
 });
 
 test("mantém sessão, credenciais e CSRF centralizados no cliente da API", async () => {
-  const [layout, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, threeCxAudio, ringbackTone] = await Promise.all([
+  const [layout, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/AuthProvider.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/LoginScreen.tsx", import.meta.url), "utf8"),
@@ -41,7 +41,7 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
     readFile(new URL("../app/components/AdminScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/LeadImportScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ui/LoadingOverlay.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/lib/three-cx-audio.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/asterisk-sip.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/ringback-tone.ts", import.meta.url), "utf8"),
   ]);
 
@@ -75,11 +75,12 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(sdr, /Reserva exclusiva por 15 minutos/);
   assert.match(sdr, /queueSummary\.available/);
   assert.match(sdr, /item\.sdr\?\.name/);
-  assert.match(sdr, /ThreeCxAudioBridge/);
+  assert.match(sdr, /AsteriskSipClient/);
   assert.match(sdr, /RingbackTone/);
   assert.match(sdr, /ringbackTone\.start\(\)/);
   assert.match(sdr, /ringbackToneRef\.current\?\.stop\(\)/);
   assert.doesNotMatch(sdr, /@twilio|new Device/);
+  assert.doesNotMatch(sdr, /ThreeCxAudioBridge|3CX \+ OverTele/);
   assert.doesNotMatch(sdr, /id: "scheduled"|id: "Agendado"/);
   assert.match(api, /\/api\/operations\/dashboard/);
   assert.match(api, /\/api\/operations\/leads/);
@@ -106,9 +107,12 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(dashboard, /dashboard-overview-grid/);
   assert.match(dashboard, /sdr-welcome-hero/);
-  assert.match(threeCxAudio, /AudioWorkletNode/);
-  assert.match(threeCxAudio, /8000/);
-  assert.match(threeCxAudio, /WebSocket/);
+  assert.match(api, /\/api\/telephony\/asterisk\/session/);
+  assert.match(api, /Idempotency-Key/);
+  assert.match(asteriskSip, /from "sip\.js"/);
+  assert.match(asteriskSip, /RegistererState\.Registered/);
+  assert.match(asteriskSip, /SessionState\.Established/);
+  assert.match(asteriskSip, /getUserMedia/);
   assert.match(ringbackTone, /RING_CYCLE_MS = 5_000/);
   assert.match(ringbackTone, /425/);
   assert.match(ringbackTone, /context\.close/);
