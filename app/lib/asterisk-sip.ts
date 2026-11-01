@@ -40,6 +40,13 @@ export class AsteriskSipClient {
   private registered = false;
   private fingerprint = "";
   private remoteAudio: HTMLAudioElement | null = null;
+  private remoteStream: MediaStream | null = null;
+  private remotePeerConnection: RTCPeerConnection | null = null;
+  private remoteTrackListener: ((event: RTCTrackEvent) => void) | null = null;
+
+  prepareAudioOutput() {
+    this.ensureRemoteAudio();
+  }
 
   async prepareMicrophone() {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("O navegador não permite acesso ao microfone.");
@@ -123,7 +130,7 @@ export class AsteriskSipClient {
     inviter.stateChange.addListener((state) => {
       if (state === SessionState.Establishing) callbacks.onEstablishing?.();
       if (state === SessionState.Established) {
-        void this.attachRemoteAudio(inviter).catch((error) => callbacks.onError?.(error.message));
+        void this.attachRemoteAudio(inviter, callbacks.onError).catch((error) => callbacks.onError?.(error.message));
         callbacks.onEstablished?.();
       }
       if (state === SessionState.Terminated) {
@@ -134,26 +141,82 @@ export class AsteriskSipClient {
     });
     try {
       await inviter.invite();
+      // O receiver costuma ser criado antes de a sessão chegar a Established.
+      // Conectá-lo aqui evita perder o primeiro evento `track` do WebRTC.
+      await this.attachRemoteAudio(inviter, callbacks.onError);
     } catch (error) {
       if (this.inviter === inviter) this.inviter = null;
       throw new Error(mediaErrorMessage(error));
     }
   }
 
-  private async attachRemoteAudio(inviter: Inviter) {
+  private ensureRemoteAudio() {
+    if (this.remoteAudio) return this.remoteAudio;
+    const audio = document.createElement("audio");
+    audio.autoplay = true;
+    audio.playsInline = true;
+    audio.muted = false;
+    audio.volume = 1;
+    audio.setAttribute("aria-hidden", "true");
+    audio.style.position = "fixed";
+    audio.style.width = "1px";
+    audio.style.height = "1px";
+    audio.style.opacity = "0";
+    audio.style.pointerEvents = "none";
+    document.body.appendChild(audio);
+    this.remoteAudio = audio;
+    return audio;
+  }
+
+  private async playRemoteAudio(onError?: (message: string) => void) {
+    const audio = this.ensureRemoteAudio();
+    if (!this.remoteStream || this.remoteStream.getAudioTracks().length === 0) return;
+    if (audio.srcObject !== this.remoteStream) audio.srcObject = this.remoteStream;
+    try {
+      await audio.play();
+    } catch (error) {
+      const message = error instanceof DOMException && error.name === "NotAllowedError"
+        ? "O navegador bloqueou o áudio da ligação. Clique novamente em Ligar com Onvox para liberar a reprodução."
+        : `Não foi possível reproduzir o áudio recebido: ${error instanceof Error ? error.message : "erro desconhecido"}.`;
+      onError?.(message);
+      throw new Error(message);
+    }
+  }
+
+  private addRemoteTrack(track: MediaStreamTrack, onError?: (message: string) => void) {
+    if (track.kind !== "audio") return;
+    const stream = this.remoteStream || new MediaStream();
+    this.remoteStream = stream;
+    if (!stream.getTracks().some((item) => item.id === track.id)) stream.addTrack(track);
+    track.enabled = true;
+    track.addEventListener("unmute", () => { void this.playRemoteAudio(onError).catch(() => undefined); }, { once: true });
+    void this.playRemoteAudio(onError).catch(() => undefined);
+  }
+
+  private async attachRemoteAudio(inviter: Inviter, onError?: (message: string) => void) {
     const handler = inviter.sessionDescriptionHandler as { peerConnection?: RTCPeerConnection } | undefined;
     const peerConnection = handler?.peerConnection;
     if (!peerConnection) throw new Error("Canal de áudio WebRTC indisponível.");
-    const stream = new MediaStream();
-    for (const receiver of peerConnection.getReceivers()) {
-      if (receiver.track?.kind === "audio") stream.addTrack(receiver.track);
+
+    this.ensureRemoteAudio();
+    if (this.remotePeerConnection !== peerConnection) {
+      if (this.remotePeerConnection && this.remoteTrackListener) {
+        this.remotePeerConnection.removeEventListener("track", this.remoteTrackListener);
+      }
+      this.remotePeerConnection = peerConnection;
+      this.remoteTrackListener = (event: RTCTrackEvent) => {
+        this.addRemoteTrack(event.track, onError);
+        for (const stream of event.streams) {
+          for (const track of stream.getAudioTracks()) this.addRemoteTrack(track, onError);
+        }
+      };
+      peerConnection.addEventListener("track", this.remoteTrackListener);
     }
-    const audio = this.remoteAudio || new Audio();
-    audio.autoplay = true;
-    audio.playsInline = true;
-    audio.srcObject = stream;
-    this.remoteAudio = audio;
-    await audio.play();
+
+    for (const receiver of peerConnection.getReceivers()) {
+      if (receiver.track) this.addRemoteTrack(receiver.track, onError);
+    }
+    await this.playRemoteAudio(onError);
   }
 
   async endCall() {
@@ -169,9 +232,16 @@ export class AsteriskSipClient {
   }
 
   private clearRemoteAudio() {
+    if (this.remotePeerConnection && this.remoteTrackListener) {
+      this.remotePeerConnection.removeEventListener("track", this.remoteTrackListener);
+    }
+    this.remotePeerConnection = null;
+    this.remoteTrackListener = null;
+    this.remoteStream = null;
     if (!this.remoteAudio) return;
     this.remoteAudio.pause();
     this.remoteAudio.srcObject = null;
+    this.remoteAudio.remove();
     this.remoteAudio = null;
   }
 

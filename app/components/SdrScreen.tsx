@@ -237,6 +237,8 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
     ringbackTone.start();
     const sipClient = sipClientRef.current || new AsteriskSipClient();
     sipClientRef.current = sipClient;
+    // Cria a saída de áudio durante o gesto do usuário, antes das chamadas de rede.
+    sipClient.prepareAudioOutput();
     let createdCallId: string | null = null;
     try {
       await sipClient.prepareMicrophone();

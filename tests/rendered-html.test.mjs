@@ -113,6 +113,8 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(asteriskSip, /RegistererState\.Registered/);
   assert.match(asteriskSip, /SessionState\.Established/);
   assert.match(asteriskSip, /getUserMedia/);
+  assert.match(asteriskSip, /addEventListener\("track"/);
+  assert.match(asteriskSip, /prepareAudioOutput/);
   assert.match(ringbackTone, /RING_CYCLE_MS = 5_000/);
   assert.match(ringbackTone, /425/);
   assert.match(ringbackTone, /context\.close/);
