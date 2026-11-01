@@ -15,6 +15,7 @@ import {
 
 type ResultType = "NO_ANSWER" | "INVALID_NUMBER" | "REFUSED" | "CONTACTED" | "QUALIFIED" | "NOT_QUALIFIED" | "CALLBACK";
 type CallPhase = "idle" | "calling" | "active" | "ended";
+type SipRegistration = "connecting" | "ready" | "error";
 
 type SdrScreenProps = { onBack: () => void };
 
@@ -80,6 +81,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   const [callPhase, setCallPhase] = useState<CallPhase>("idle");
   const [callSeconds, setCallSeconds] = useState(0);
   const [callId, setCallId] = useState<string | null>(null);
+  const [sipRegistration, setSipRegistration] = useState<SipRegistration>("connecting");
   const sipClientRef = useRef<AsteriskSipClient | null>(null);
   const ringbackToneRef = useRef<RingbackTone | null>(null);
   const callIdRef = useRef<string | null>(null);
@@ -157,6 +159,35 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   }, [userId, userRole]);
 
   useEffect(() => {
+    if (!userId || userRole !== "SDR") return;
+    let active = true;
+    const sipClient = new AsteriskSipClient();
+    sipClientRef.current = sipClient;
+
+    void onTargetApi.asteriskSipSession()
+      .then(async (session) => {
+        if (!active) return;
+        await sipClient.connect(session);
+        if (!active) {
+          await sipClient.dispose();
+          return;
+        }
+        setSipRegistration("ready");
+      })
+      .catch((cause) => {
+        if (!active) return;
+        setSipRegistration("error");
+        setToast(cause instanceof Error ? cause.message : "Não foi possível registrar o ramal SIP.");
+      });
+
+    return () => {
+      active = false;
+      if (sipClientRef.current === sipClient) sipClientRef.current = null;
+      void sipClient.dispose();
+    };
+  }, [userId, userRole]);
+
+  useEffect(() => {
     if (!campaignId || !userId || userRole !== "SDR") return;
     const timer = window.setTimeout(() => {
       void Promise.all([refreshSideData(campaignId), claimNext(campaignId)]).catch((cause) => {
@@ -195,7 +226,6 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
   useEffect(() => () => {
     if (statusTimerRef.current) window.clearTimeout(statusTimerRef.current);
     ringbackToneRef.current?.stop();
-    void sipClientRef.current?.dispose();
     if (callIdRef.current) void onTargetApi.endAsteriskCall(callIdRef.current).catch(() => undefined);
   }, []);
 
@@ -244,6 +274,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
       await sipClient.prepareMicrophone();
       const sipSession = await onTargetApi.asteriskSipSession();
       await sipClient.connect(sipSession);
+      setSipRegistration("ready");
       const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const record = await onTargetApi.createAsteriskCall({ leadId: lead.id }, idempotencyKey);
       createdCallId = record.id;
@@ -270,6 +301,7 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
       setCallId(null);
       callIdRef.current = null;
       setCallPhase("idle");
+      if (cause instanceof Error && /ramal|SIP|Asterisk|WebSocket/i.test(cause.message)) setSipRegistration("error");
       setToast(cause instanceof Error ? cause.message : "Não foi possível iniciar a ligação.");
     }
   }
@@ -430,10 +462,10 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
                 <div className={`phone-action-panel ${callPhase === "active" ? "in-call" : ""}`}>
                   <div className="phone-copy"><span>{callPhase === "active" ? "LIGAÇÃO EM ANDAMENTO" : "TELEFONE PRINCIPAL"}</span><strong>{callPhase === "active" ? formatTimer(callSeconds) : lead.phone}</strong><button type="button" onClick={() => { void navigator.clipboard?.writeText(lead.phoneE164); setToast("Número copiado."); }}>Copiar número</button></div>
                   <div className="phone-actions">
-                    {callPhase === "idle" && <button className="call-button" type="button" onClick={() => void startCall()}><span className="phone-dot" />Ligar com Onvox</button>}
+                    {callPhase === "idle" && <button className="call-button" type="button" disabled={sipRegistration === "connecting"} onClick={() => void startCall()}><span className="phone-dot" />{sipRegistration === "connecting" ? "Conectando ramal…" : "Ligar com Onvox"}</button>}
                     {["calling", "active"].includes(callPhase) && <button className="end-call-button" type="button" onClick={() => void endCall()}>{callPhase === "calling" ? "Cancelar chamada" : "Encerrar ligação"}</button>}
                     {callPhase === "ended" && <span className="call-complete"><i>✓</i> Ligação finalizada • {formatTimer(callSeconds)}</span>}
-                    <div className="onvox-note"><span className="onvox-mark">O</span><div><strong>Asterisk + OverTele</strong><small>Áudio WebRTC seguro</small></div></div>
+                    <div className="onvox-note"><span className="onvox-mark">O</span><div><strong>Asterisk + OverTele</strong><small>{sipRegistration === "ready" ? "Ramal conectado" : sipRegistration === "error" ? "Ramal desconectado" : "Conectando ramal"}</small></div></div>
                   </div>
                 </div>
               </article>
