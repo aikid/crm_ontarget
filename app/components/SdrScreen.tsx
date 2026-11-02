@@ -458,9 +458,9 @@ export default function SdrScreen() {
                 <div className="lead-details-grid">
                   <div><span>Loja de origem</span><strong>{lead.store.shortName}</strong></div>
                   <div><span>Campanha</span><strong>{lead.campaign.name}</strong></div>
-                  <div><span>Origem</span><strong>{lead.origin}</strong></div>
-                  <div><span>Veículo de interesse</span><strong>{lead.vehicle}</strong></div>
-                  <div><span>Motivo</span><strong>{lead.reason || "Não informado"}</strong></div>
+                  <div><span>Origem</span><strong>{lead.origin || "Não informada"}</strong></div>
+                  <div><span>Ação</span><strong>{lead.action || lead.vehicle || "Não informada"}</strong></div>
+                  <div><span>Dia da ação</span><strong>{lead.actionDate || "Não informado"}</strong></div>
                   <div><span>Último contato</span><strong>{lead.lastContact}</strong></div>
                 </div>
                 <div className={`phone-action-panel ${callPhase === "active" ? "in-call" : ""}`}>

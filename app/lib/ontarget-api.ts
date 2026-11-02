@@ -110,7 +110,9 @@ export type ApiLead = {
   initials: string;
   phone: string;
   phoneE164: string;
-  vehicle: string;
+  action: string | null;
+  actionDate: string | null;
+  vehicle: string | null;
   origin: string;
   reason: string | null;
   storeId: string;

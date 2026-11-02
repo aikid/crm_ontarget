@@ -29,10 +29,12 @@ test("renderiza a aplicação protegida sem expor conteúdo antes da sessão", a
 });
 
 test("mantém sessão, credenciais e CSRF centralizados no cliente da API", async () => {
-  const [layout, page, sidebar, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
+  const [layout, page, sidebar, clientSidebar, clientPortal, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Sidebar.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/client/ClientSidebar.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/client/ClientPortal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/AuthProvider.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/LoginScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -52,6 +54,9 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(page, /user\.role === "SDR" \? "sdr" : screen/);
   assert.match(sidebar, /item\.id === "sdr"/);
   assert.doesNotMatch(sidebar, /Sistema operacional|Portal do Cliente|queue-card|internal-environment-link/);
+  assert.doesNotMatch(sidebar, /Auditoria|Relatórios|Configurações|Em breve/);
+  assert.doesNotMatch(clientSidebar, /Campanhas|Leads|Relatórios|Dados atualizados|Ajuda|Visão SysOn/);
+  assert.doesNotMatch(clientPortal, /Central de ajuda|ALTERNAR AMBIENTE|Operação SysOn|environmentOpen/);
   assert.match(provider, /onTargetApi\.session\(\)/);
   assert.match(provider, /loggingOut/);
   assert.match(provider, /Encerrando sua sessão/);
