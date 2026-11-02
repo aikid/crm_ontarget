@@ -12,16 +12,16 @@ type Props = {
 
 function Brand() {
   return (
-    <div className="auth-brand" aria-label="OnTarget">
+    <div className="auth-brand" aria-label="SysOn">
       <span className="auth-brand-target" aria-hidden="true"><i /></span>
-      <strong>ON TARGET</strong>
+      <strong>SYSON</strong>
     </div>
   );
 }
 
 function AuthAside({ area }: Pick<Props, "area">) {
   return (
-    <aside className="auth-aside" aria-label="Apresentação OnTarget">
+    <aside className="auth-aside" aria-label="Apresentação SysOn">
       <div className="auth-aside-glow auth-aside-glow-top" />
       <div className="auth-aside-glow auth-aside-glow-bottom" />
       <Brand />
@@ -48,7 +48,7 @@ function AuthAside({ area }: Pick<Props, "area">) {
 
       <footer>
         <span>{area === "client" ? "Portal de resultados" : "Operação SDR"}</span>
-        <small>© 2026 OnTarget</small>
+        <small>© 2026 SysOn</small>
       </footer>
     </aside>
   );

@@ -25,7 +25,7 @@ export default function ClientPortal() {
       <section className="client-main">
         <header className="client-header">
           <div className="client-header-context">
-            <span className="client-mobile-brand">OnTarget</span>
+            <span className="client-mobile-brand">SysOn</span>
             <div>
               <span>Campanha selecionada</span>
               <label className="client-campaign-select">
@@ -54,7 +54,7 @@ export default function ClientPortal() {
                   <span>ALTERNAR AMBIENTE</span>
                   <Link href="/" className="environment-option">
                     <i>OT</i>
-                    <div><strong>Operação OnTarget</strong><small>Gestão interna e SDR</small></div>
+                    <div><strong>Operação SysOn</strong><small>Gestão interna e SDR</small></div>
                     <b>→</b>
                   </Link>
                   <button type="button" className="environment-option current">

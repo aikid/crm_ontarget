@@ -78,7 +78,7 @@ export class AsteriskSipClient {
       transportOptions: { server: config.webSocketUrl },
       authorizationUsername: config.extension,
       authorizationPassword: config.password,
-      displayName: `OnTarget ${config.extension}`,
+      displayName: `SysOn ${config.extension}`,
       logLevel: "warn",
       delegate: {
         onDisconnect: () => { this.registered = false; },
@@ -93,7 +93,7 @@ export class AsteriskSipClient {
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         registerer.stateChange.removeListener(listener);
-        reject(new Error("O Asterisk não confirmou o registro do ramal."));
+        reject(new Error("O serviço de ligação não confirmou o registro do ramal."));
       }, 12_000);
       const listener = (state: RegistererState) => {
         if (state === RegistererState.Registered) {
@@ -104,7 +104,7 @@ export class AsteriskSipClient {
         } else if (state === RegistererState.Terminated) {
           window.clearTimeout(timeout);
           registerer.stateChange.removeListener(listener);
-          reject(new Error("O registro SIP foi encerrado pelo Asterisk."));
+          reject(new Error("O registro do ramal foi encerrado pelo serviço de ligação."));
         }
       };
       registerer.stateChange.addListener(listener);
@@ -176,7 +176,7 @@ export class AsteriskSipClient {
       await audio.play();
     } catch (error) {
       const message = error instanceof DOMException && error.name === "NotAllowedError"
-        ? "O navegador bloqueou o áudio da ligação. Clique novamente em Ligar com Onvox para liberar a reprodução."
+        ? "O navegador bloqueou o áudio da ligação. Clique novamente em Ligar para liberar a reprodução."
         : `Não foi possível reproduzir o áudio recebido: ${error instanceof Error ? error.message : "erro desconhecido"}.`;
       onError?.(message);
       throw new Error(message);

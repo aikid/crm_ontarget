@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const imageUrl = `${protocol}://${host}/og-platform.png`;
 
   return {
-    title: "OnTarget | Operação e Portal do Cliente",
+    title: "SysOn | Operação e Portal do Cliente",
     description:
       "Operação SDR e resultados de campanhas automotivas conectados em uma única plataforma.",
     icons: {
@@ -29,15 +29,15 @@ export async function generateMetadata(): Promise<Metadata> {
       shortcut: "/favicon.svg",
     },
     openGraph: {
-      title: "OnTarget | Operação e Portal do Cliente",
+      title: "SysOn | Operação e Portal do Cliente",
       description: "Operação e resultados, na mesma plataforma.",
       type: "website",
       locale: "pt_BR",
-      images: [{ url: imageUrl, width: 1680, height: 945, alt: "OnTarget — Operação e resultados, na mesma plataforma" }],
+      images: [{ url: imageUrl, width: 1680, height: 945, alt: "SysOn — Operação e resultados, na mesma plataforma" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "OnTarget | Operação e Portal do Cliente",
+      title: "SysOn | Operação e Portal do Cliente",
       description: "Operação e resultados, na mesma plataforma.",
       images: [imageUrl],
     },

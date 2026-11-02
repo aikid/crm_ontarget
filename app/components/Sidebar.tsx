@@ -1,5 +1,4 @@
 import type { Screen } from "../page";
-import Link from "next/link";
 import type { SessionUser } from "../lib/ontarget-api";
 
 type SidebarProps = {
@@ -38,12 +37,16 @@ function NavIcon({ name }: { name: string }) {
 }
 
 export default function Sidebar({ activeScreen, onNavigate, user, onLogout, loggingOut }: SidebarProps) {
+  const visibleItems = user.role === "SDR"
+    ? navItems.filter((item) => item.id === "sdr")
+    : navItems.filter((item) => !item.sdrOnly);
+
   return (
     <aside className="sidebar">
       <div className="brand">
         <span className="brand-mark" aria-hidden="true"><i /></span>
         <div>
-          <strong>OnTarget</strong>
+          <strong>SysOn</strong>
           <span>Operação comercial</span>
         </div>
         <small>V1</small>
@@ -51,7 +54,7 @@ export default function Sidebar({ activeScreen, onNavigate, user, onLogout, logg
 
       <div className="sidebar-label">NAVEGAÇÃO</div>
       <nav className="main-nav" aria-label="Navegação principal">
-        {navItems.filter((item) => (!item.managerOnly || user.role === "GESTOR") && (!item.sdrOnly || user.role === "SDR")).map((item) => {
+        {visibleItems.map((item) => {
           const active = item.id === activeScreen;
           return (
             <button
@@ -73,18 +76,6 @@ export default function Sidebar({ activeScreen, onNavigate, user, onLogout, logg
 
       <div className="sidebar-spacer" />
       <div className="sidebar-footer">
-        <div className="queue-card">
-          <span className="system-status-icon" aria-hidden="true"><i /></span>
-          <div><strong>Sistema operacional</strong><span>Sincronizado com a API</span></div>
-          <small>Online</small>
-        </div>
-
-        <Link className="internal-environment-link" href="/cliente">
-          <span className="environment-icon"><NavIcon name="external" /></span>
-          <div><strong>Portal do Cliente</strong><small>Alternar ambiente</small></div>
-          <i>→</i>
-        </Link>
-
         <div className="sidebar-user">
           <span className="avatar avatar-dark">{user.initials}</span>
           <div>

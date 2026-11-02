@@ -33,7 +33,7 @@ export default function ClientSidebar({ activeScreen, onNavigate, clientName, on
     <aside className="client-sidebar">
       <div className="client-brand">
         <span className="brand-mark"><i /></span>
-        <div><strong>OnTarget</strong><span>Portal do Cliente</span></div>
+        <div><strong>SysOn</strong><span>Portal do Cliente</span></div>
       </div>
 
       <div className="client-account-card">
@@ -69,7 +69,7 @@ export default function ClientSidebar({ activeScreen, onNavigate, clientName, on
       </div>
       <div className="client-sidebar-footer">
         <button type="button"><span>?</span> Ajuda</button>
-        <Link href="/"><span>↔</span> Visão OnTarget</Link>
+        <Link href="/"><span>↔</span> Visão SysOn</Link>
         <button type="button" onClick={onLogout} disabled={loggingOut} aria-busy={loggingOut}>
           <span>{loggingOut ? <i className="logout-button-spinner" aria-hidden="true" /> : "→"}</span>
           {loggingOut ? "Saindo..." : "Sair"}

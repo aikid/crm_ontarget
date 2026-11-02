@@ -17,21 +17,22 @@ export default function Home() {
   const [screen, setScreen] = useState<Screen>("dashboard");
   const { user, loading, loggingOut, logout } = useAuth();
 
-  if (loading) return <main className="auth-page app-boot-screen"><LoadingOverlay show title="Validando seu acesso" message="Conectando ao ambiente seguro da OnTarget." /></main>;
+  if (loading) return <main className="auth-page app-boot-screen"><LoadingOverlay show title="Validando seu acesso" message="Conectando ao ambiente seguro da SysOn." /></main>;
   if (!user) return <LoginScreen area="internal" />;
   if (!["GESTOR", "SDR"].includes(user.role)) return <LoginScreen area="internal" unauthorizedUser={user} />;
+  const activeScreen: Screen = user.role === "SDR" ? "sdr" : screen;
 
   return (
     <main className="app-shell">
-      <Sidebar activeScreen={screen} onNavigate={setScreen} user={user} onLogout={() => void logout()} loggingOut={loggingOut} />
+      <Sidebar activeScreen={activeScreen} onNavigate={setScreen} user={user} onLogout={() => void logout()} loggingOut={loggingOut} />
       <section className="app-content">
-        {screen === "dashboard" ? (
+        {activeScreen === "dashboard" ? (
           <DashboardScreen canOpenSdr={user.role === "SDR"} onOpenSdr={() => setScreen("sdr")} />
-        ) : screen === "sdr" ? (
-          <SdrScreen onBack={() => setScreen("dashboard")} />
-        ) : screen === "admin" ? (
+        ) : activeScreen === "sdr" ? (
+          <SdrScreen />
+        ) : activeScreen === "admin" ? (
           <AdminScreen />
-        ) : screen === "leads" ? (
+        ) : activeScreen === "leads" ? (
           <LeadSearchScreen />
         ) : (
           <LeadImportScreen />

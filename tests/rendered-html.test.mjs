@@ -21,7 +21,7 @@ test("renderiza a aplicação protegida sem expor conteúdo antes da sessão", a
     assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
     const html = await response.text();
-    assert.match(html, /<title>OnTarget \| Operação e Portal do Cliente<\/title>/i);
+    assert.match(html, /<title>SysOn \| Operação e Portal do Cliente<\/title>/i);
     assert.match(html, /class="auth-page(?:\s|\")/);
     assert.match(html, /Validando seu acesso/);
     assert.doesNotMatch(html, /ricardo@brasaldemo|OnTarget@123|passwordHash/i);
@@ -29,8 +29,10 @@ test("renderiza a aplicação protegida sem expor conteúdo antes da sessão", a
 });
 
 test("mantém sessão, credenciais e CSRF centralizados no cliente da API", async () => {
-  const [layout, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
+  const [layout, page, sidebar, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Sidebar.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/AuthProvider.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/LoginScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -46,6 +48,10 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   ]);
 
   assert.match(layout, /<AuthProvider>\{children\}<\/AuthProvider>/);
+  assert.match(layout, /SysOn \| Operação e Portal do Cliente/);
+  assert.match(page, /user\.role === "SDR" \? "sdr" : screen/);
+  assert.match(sidebar, /item\.id === "sdr"/);
+  assert.doesNotMatch(sidebar, /Sistema operacional|Portal do Cliente|queue-card|internal-environment-link/);
   assert.match(provider, /onTargetApi\.session\(\)/);
   assert.match(provider, /loggingOut/);
   assert.match(provider, /Encerrando sua sessão/);
@@ -57,6 +63,7 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(login, /Bem-vindo de volta/);
   assert.match(login, /aria-label=\{showPassword \? "Ocultar senha" : "Mostrar senha"\}/);
   assert.match(login, /auth-aside/);
+  assert.match(login, /SYSON/);
   assert.match(styles, /@media \(max-width: 520px\)/);
   assert.match(styles, /\.auth-submit:disabled/);
   assert.match(api, /credentials:\s*"include"/);
@@ -120,9 +127,12 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(asteriskSip, /getUserMedia/);
   assert.match(asteriskSip, /addEventListener\("track"/);
   assert.match(asteriskSip, /prepareAudioOutput/);
-  assert.match(sdr, /Conectando ramal/);
+  assert.match(sdr, /Preparando ligação/);
   assert.match(sdr, /asteriskSipSession/);
   assert.match(sdr, /releaseLead\(reservedLeadId\)/);
+  assert.match(sdr, /callPhase !== "idle" && <article className="result-card">/);
+  assert.match(sdr, /Preparando ligação…" : "Ligar"/);
+  assert.doesNotMatch(sdr, /Ligar com Onvox|Asterisk \+ OverTele/);
   assert.match(ringbackTone, /RING_CYCLE_MS = 5_000/);
   assert.match(ringbackTone, /425/);
   assert.match(ringbackTone, /context\.close/);

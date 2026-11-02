@@ -111,7 +111,7 @@ export default function DashboardScreen({ onOpenSdr, canOpenSdr }: DashboardScre
       <header className="topbar"><div><div className="eyebrow-row"><span className="eyebrow">MINHA OPERAÇÃO</span><span className="live-badge"><span /> ONLINE</span></div><h1>Olá, {user.name.split(" ")[0]}</h1><p>Seu resumo de tentativas registradas hoje.</p></div></header>
       {error && <div className="admin-message error">{error}</div>}
       <section className="sdr-welcome-hero">
-        <div className="sdr-welcome-copy"><span>FILA INTELIGENTE</span><h2>Transforme o próximo contato em oportunidade.</h2><p>A OnTarget reserva um lead por vez para você trabalhar com foco e segurança.</p>{canOpenSdr && <button className="dashboard-hero-button" type="button" onClick={onOpenSdr}>Iniciar operação SDR <span>→</span></button>}</div>
+        <div className="sdr-welcome-copy"><span>FILA INTELIGENTE</span><h2>Transforme o próximo contato em oportunidade.</h2><p>A SysOn reserva um lead por vez para você trabalhar com foco e segurança.</p>{canOpenSdr && <button className="dashboard-hero-button" type="button" onClick={onOpenSdr}>Iniciar operação SDR <span>→</span></button>}</div>
         <div className="sdr-welcome-visual" aria-hidden="true"><span className="signal-ring ring-one" /><span className="signal-ring ring-two" /><strong>OT</strong><small>Fila online</small></div>
       </section>
       <section className="kpi-grid sdr-home-kpis">
