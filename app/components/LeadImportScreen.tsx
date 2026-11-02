@@ -14,7 +14,7 @@ import LoadingOverlay from "./ui/LoadingOverlay";
 const errorLabels: Record<string, string> = {
   INVALID_ROW: "Dados inválidos",
   DUPLICATE_IN_FILE: "Duplicado no arquivo",
-  DUPLICATE_IN_CAMPAIGN: "Já existe na campanha",
+  DUPLICATE_IN_CAMPAIGN: "Já existe na ação",
 };
 
 function formatDate(value: string) {
@@ -140,7 +140,7 @@ export default function LeadImportScreen() {
       <LoadingOverlay
         show={loading || uploading}
         title={uploading ? "Importando sua base" : "Carregando importações"}
-        message={uploading ? (source === "google-sheets" ? "Lendo a planilha e validando cada lead." : "Validando as linhas e protegendo a integridade dos leads.") : "Buscando campanhas e lotes recentes."}
+        message={uploading ? (source === "google-sheets" ? "Lendo a planilha e validando cada lead." : "Validando as linhas e protegendo a integridade dos leads.") : "Buscando ações e lotes recentes."}
       />
       <header className="admin-header">
         <div><span>GESTÃO DE LEADS</span><h1>Importar leads</h1><p>Envie um arquivo ou conecte uma planilha do Google Sheets.</p></div>
@@ -151,11 +151,11 @@ export default function LeadImportScreen() {
 
       <div className="import-layout">
         <section className="import-card">
-          <div className="import-step"><span>1</span><div><strong>Destino dos leads</strong><small>A campanha define a loja e o cliente responsáveis.</small></div></div>
+          <div className="import-step"><span>1</span><div><strong>Destino dos leads</strong><small>A ação define o vendedor e o cliente responsáveis.</small></div></div>
           <form onSubmit={submit}>
             <label><span>Cliente</span><select value={clientId} required onChange={(event) => selectClient(event.target.value)} disabled={loading}><option value="" disabled>Selecione</option>{clients.filter((row) => row.active).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-            <label><span>Loja</span><select value={storeId} required onChange={(event) => selectStore(event.target.value)} disabled={loading}><option value="" disabled>Selecione</option>{availableStores.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-            <label><span>Campanha ativa</span><select value={campaignId} required onChange={(event) => setCampaignId(event.target.value)} disabled={loading}><option value="" disabled>Selecione</option>{availableCampaigns.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+            <label><span>Vendedor</span><select value={storeId} required onChange={(event) => selectStore(event.target.value)} disabled={loading}><option value="" disabled>Selecione</option>{availableStores.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+            <label><span>Ação</span><select value={campaignId} required onChange={(event) => setCampaignId(event.target.value)} disabled={loading}><option value="" disabled>Selecione</option>{availableCampaigns.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
 
             <div className="import-step file-step"><span>2</span><div><strong>Origem dos leads</strong><small>Escolha arquivo local ou Google Sheets.</small></div></div>
             <div className="import-source-tabs" role="tablist" aria-label="Origem da importação">
@@ -201,7 +201,7 @@ export default function LeadImportScreen() {
 
       <section className="import-history">
         <header><div><span>HISTÓRICO</span><h2>Importações recentes</h2></div></header>
-        {loading ? <div className="admin-empty">Carregando lotes...</div> : batches.length === 0 ? <div className="admin-empty">Nenhuma importação realizada.</div> : <div className="admin-table-wrap"><table><thead><tr><th>Arquivo</th><th>Campanha</th><th>Responsável</th><th>Total</th><th>Importados</th><th>Rejeitados</th><th>Data</th><th /></tr></thead><tbody>{batches.map((batch) => <tr key={batch.id}><td><strong>{batch.fileName}</strong><small>{sourceLabel(batch.fileType)}</small></td><td>{batch.campaign.name}<small>{batch.store.shortName}</small></td><td>{batch.uploadedBy.name}</td><td>{batch.totalRows}</td><td className="imported-count">{batch.importedRows}</td><td className={batch.rejectedRows ? "rejected-count" : ""}>{batch.rejectedRows}</td><td>{formatDate(batch.createdAt)}</td><td><button type="button" onClick={() => void openBatch(batch)}>Ver detalhes</button></td></tr>)}</tbody></table></div>}
+        {loading ? <div className="admin-empty">Carregando lotes...</div> : batches.length === 0 ? <div className="admin-empty">Nenhuma importação realizada.</div> : <div className="admin-table-wrap"><table><thead><tr><th>Arquivo</th><th>Ação</th><th>Responsável</th><th>Total</th><th>Importados</th><th>Rejeitados</th><th>Data</th><th /></tr></thead><tbody>{batches.map((batch) => <tr key={batch.id}><td><strong>{batch.fileName}</strong><small>{sourceLabel(batch.fileType)}</small></td><td>{batch.campaign.name}<small>{batch.store.shortName}</small></td><td>{batch.uploadedBy.name}</td><td>{batch.totalRows}</td><td className="imported-count">{batch.importedRows}</td><td className={batch.rejectedRows ? "rejected-count" : ""}>{batch.rejectedRows}</td><td>{formatDate(batch.createdAt)}</td><td><button type="button" onClick={() => void openBatch(batch)}>Ver detalhes</button></td></tr>)}</tbody></table></div>}
       </section>
 
       {detail && <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setDetail(null)}><section className="admin-modal import-detail" role="dialog" aria-modal="true" aria-labelledby="import-detail-title"><header><div><span>RELATÓRIO DO LOTE</span><h2 id="import-detail-title">{detail.fileName}</h2></div><button type="button" onClick={() => setDetail(null)} aria-label="Fechar">×</button></header><div className="import-detail-summary"><span><b>{detail.totalRows}</b>Total</span><span><b>{detail.importedRows}</b>Importados</span><span><b>{detail.rejectedRows}</b>Rejeitados</span></div>{detail.errors?.length ? <div className="import-error-list">{detail.errors.map((row) => <article key={row.id}><span>Linha {row.rowNumber}</span><div><strong>{errorLabels[row.code] || row.code}</strong><p>{row.message}</p><small>{row.rawData?.nome || "Sem nome"} · {row.rawData?.telefone || "Sem telefone"}</small></div></article>)}{detail.rejectedRows > detail.errors.length && <p className="import-error-limit">Exibindo os primeiros {detail.errors.length} erros de {detail.rejectedRows}.</p>}</div> : <div className="admin-empty">Todas as linhas foram importadas.</div>}</section></div>}

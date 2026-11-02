@@ -104,7 +104,7 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.doesNotMatch(api, /x-user-id|x-user-email/i);
   assert.match(admin, /Clientes/);
   assert.match(admin, /Vendedores/);
-  assert.match(admin, /Campanhas/);
+  assert.match(admin, /Ações/);
   assert.match(admin, /Usuários/);
   assert.match(admin, /table-identity/);
   assert.match(admin, /formEntityLabel\(tab\)/);
@@ -115,7 +115,9 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(admin, /stores: "Vendedores"/);
   assert.match(admin, /<th>Vendedor<\/th>/);
   assert.match(admin, /Cliente \/ vendedor/);
-  assert.match(admin, /vendedores ·/);
+  assert.match(admin, /vendedores ·.*ações/);
+  assert.match(admin, /label="Nome da ação"/);
+  assert.match(admin, /<th>Ação<\/th>/);
   assert.match(admin, /label="E-mail" type="email"/);
   assert.match(admin, /Enviar acesso/);
   assert.match(admin, /sendClientAccess/);
@@ -125,6 +127,10 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(leadImport, /modelo-importacao-leads\.csv/);
   assert.match(leadImport, /\.csv,\.xlsx/);
   assert.match(leadImport, /Google Sheets/);
+  assert.match(leadImport, /<span>Vendedor<\/span>/);
+  assert.match(leadImport, /<span>Ação<\/span>/);
+  assert.match(leadImport, /A ação define o vendedor e o cliente responsáveis/);
+  assert.doesNotMatch(leadImport, /<span>Loja<\/span>|<span>Campanha ativa<\/span>|<th>Campanha<\/th>/);
   assert.match(leadImport, /googleSheetsImportConfig/);
   assert.match(leadImport, /importGoogleSheets/);
   assert.match(api, /\/api\/admin\/imports\/google-sheets\/config/);
@@ -150,6 +156,11 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(sdr, /asteriskSipSession/);
   assert.match(sdr, /releaseLead\(reservedLeadId\)/);
   assert.match(sdr, /callPhase !== "idle" && <article className="result-card">/);
+  assert.match(sdr, /<span>Ação<\/span>/);
+  assert.match(sdr, /<span>Vendedor<\/span>/);
+  assert.match(sdr, /<span>Veículo de interesse<\/span>/);
+  assert.match(sdr, /vehicle: vehicleInterest\.trim\(\) \|\| undefined/);
+  assert.doesNotMatch(sdr, /Campanha ativa|Loja de origem|lead\.action \|\| lead\.vehicle/);
   assert.match(sdr, /Preparando ligação…" : "Ligar"/);
   assert.doesNotMatch(sdr, /Ligar com Onvox|Asterisk \+ OverTele/);
   assert.match(sdr, /id: "DIRECTED", label: "Direcionado"/);

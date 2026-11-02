@@ -18,14 +18,16 @@ type ClientAccess = { email: string; temporaryPassword: string };
 const tabLabels: Record<Tab, string> = {
   clients: "Clientes",
   stores: "Vendedores",
-  campaigns: "Campanhas",
+  campaigns: "Ações",
   users: "Usuários",
 };
 
 const sellerOptions = ["Venda direta", "0km", "Usado", "Consórcio"].map((option) => [option, option]);
 
 function formEntityLabel(tab: Tab) {
-  return tab === "stores" ? "Vendedor" : tabLabels[tab].slice(0, -1);
+  if (tab === "stores") return "Vendedor";
+  if (tab === "campaigns") return "Ação";
+  return tabLabels[tab].slice(0, -1);
 }
 
 function dateInput(value?: string | null) {
@@ -207,10 +209,10 @@ export default function AdminScreen() {
     setError("");
     try {
       await onTargetApi.admin.updateCampaign(record.id, { status });
-      setNotice(`Campanha marcada como ${campaignStatus(status).toLowerCase()}.`);
+      setNotice(`Ação marcada como ${campaignStatus(status).toLowerCase()}.`);
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível alterar a campanha.");
+      setError(cause instanceof Error ? cause.message : "Não foi possível alterar a ação.");
     }
   }
 
@@ -232,9 +234,9 @@ export default function AdminScreen() {
 
   return (
     <div className="admin-screen">
-      <LoadingOverlay show={loading} title="Carregando cadastros" message="Sincronizando clientes, vendedores, campanhas e usuários." />
+      <LoadingOverlay show={loading} title="Carregando cadastros" message="Sincronizando clientes, vendedores, ações e usuários." />
       <header className="admin-header">
-        <div><span>GESTÃO DA PLATAFORMA</span><h1>Cadastros</h1><p>Clientes, vendedores, campanhas e acessos da operação.</p></div>
+        <div><span>GESTÃO DA PLATAFORMA</span><h1>Cadastros</h1><p>Clientes, vendedores, ações e acessos da operação.</p></div>
         <button type="button" onClick={openCreate}>+ Novo cadastro</button>
       </header>
 
@@ -277,7 +279,7 @@ export default function AdminScreen() {
               {tab === "campaigns" && <>
                 <SelectField label="Cliente" value={form.clientId} disabled={Boolean(editing)} onChange={(value) => { const firstStore = stores.find((row) => row.active && row.clientId === value); setForm((current) => ({ ...current, clientId: value, storeId: firstStore?.id || "" })); }} options={activeClients.map((row) => [row.id, row.name])} />
                 <SelectField label="Vendedor" value={form.storeId} disabled={Boolean(editing)} onChange={(value) => setField("storeId", value)} options={availableStores.map((row) => [row.id, row.name])} />
-                <TextField label="Nome da campanha" value={form.name} onChange={(value) => setField("name", value)} />
+                <TextField label="Nome da ação" value={form.name} onChange={(value) => setField("name", value)} />
                 <SelectField label="Status" value={form.status} onChange={(value) => setField("status", value)} options={[["ACTIVE", "Ativa"], ["INACTIVE", "Inativa"], ["COMPLETED", "Concluída"]]} />
                 <div className="admin-form-grid"><TextField label="Início" type="date" value={form.startDate} onChange={(value) => setField("startDate", value)} /><TextField label="Término" type="date" value={form.endDate} onChange={(value) => setField("endDate", value)} /></div>
               </>}
@@ -314,9 +316,9 @@ function Status({ active, label }: { active: boolean; label?: string }) { return
 function Actions({ onEdit, onToggle, active }: { onEdit: () => void; onToggle: () => void; active: boolean }) { return <div className="admin-actions"><button type="button" onClick={onEdit}>Editar</button><button className={active ? "danger-action" : "success-action"} type="button" onClick={onToggle}>{active ? "Desativar" : "Ativar"}</button></div>; }
 function initials(value: string) { return value.split(" ").filter(Boolean).map((part) => part[0]).slice(0, 2).join("").toUpperCase(); }
 function TableIdentity({ name, detail, tone = "red" }: { name: string; detail: string; tone?: "red" | "dark" | "green" | "violet" }) { return <div className="table-identity"><span className={`table-row-avatar ${tone}`}>{initials(name)}</span><div><strong>{name}</strong><small>{detail}</small></div></div>; }
-function ClientTable({ rows, sendingAccessId, onEdit, onToggle, onSendAccess }: { rows: AdminClient[]; sendingAccessId: string; onEdit: (row: AdminClient) => void; onToggle: (row: AdminClient) => void; onSendAccess: (row: AdminClient) => void }) { return <table><thead><tr><th>Cliente</th><th>Estrutura</th><th>Leads</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.email || "E-mail não cadastrado"} /></td><td>{row._count.stores} vendedores · {row._count.campaigns} campanhas</td><td><span className="table-number">{row._count.leads}</span></td><td><Status active={row.active} /></td><td><div className="admin-actions"><button type="button" disabled={!row.email || sendingAccessId === row.id} title={!row.email ? "Cadastre o e-mail do cliente primeiro" : "Gerar acesso ao Portal do Cliente"} onClick={() => onSendAccess(row)}>{sendingAccessId === row.id ? "Gerando..." : "Enviar acesso"}</button><button type="button" onClick={() => onEdit(row)}>Editar</button><button className={row.active ? "danger-action" : "success-action"} type="button" onClick={() => onToggle(row)}>{row.active ? "Desativar" : "Ativar"}</button></div></td></tr>)}</tbody></table>; }
-function StoreTable({ rows, onEdit, onToggle }: { rows: AdminStore[]; onEdit: (row: AdminStore) => void; onToggle: (row: AdminStore) => void }) { return <table><thead><tr><th>Vendedor</th><th>Cliente</th><th>Campanhas</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.shortName} tone="dark" /></td><td>{row.client.name}</td><td><span className="table-number">{row._count.campaigns}</span></td><td><Status active={row.active} /></td><td><Actions active={row.active} onEdit={() => onEdit(row)} onToggle={() => onToggle(row)} /></td></tr>)}</tbody></table>; }
-function CampaignTable({ rows, onEdit, onStatus }: { rows: AdminCampaign[]; onEdit: (row: AdminCampaign) => void; onStatus: (row: AdminCampaign, status: AdminCampaign["status"]) => void }) { return <table><thead><tr><th>Campanha</th><th>Cliente / vendedor</th><th>Período</th><th>Leads</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.id} tone="violet" /></td><td>{row.client.name}<small>{row.store.shortName}</small></td><td>{formatDate(row.startDate)} — {formatDate(row.endDate)}</td><td><span className="table-number">{row._count.leads}</span></td><td><Status active={row.status === "ACTIVE"} label={campaignStatus(row.status)} /></td><td><div className="admin-actions"><button type="button" onClick={() => onEdit(row)}>Editar</button><button className={row.status === "ACTIVE" ? "danger-action" : "success-action"} type="button" onClick={() => onStatus(row, row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}>{row.status === "ACTIVE" ? "Desativar" : "Ativar"}</button></div></td></tr>)}</tbody></table>; }
+function ClientTable({ rows, sendingAccessId, onEdit, onToggle, onSendAccess }: { rows: AdminClient[]; sendingAccessId: string; onEdit: (row: AdminClient) => void; onToggle: (row: AdminClient) => void; onSendAccess: (row: AdminClient) => void }) { return <table><thead><tr><th>Cliente</th><th>Estrutura</th><th>Leads</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.email || "E-mail não cadastrado"} /></td><td>{row._count.stores} vendedores · {row._count.campaigns} ações</td><td><span className="table-number">{row._count.leads}</span></td><td><Status active={row.active} /></td><td><div className="admin-actions"><button type="button" disabled={!row.email || sendingAccessId === row.id} title={!row.email ? "Cadastre o e-mail do cliente primeiro" : "Gerar acesso ao Portal do Cliente"} onClick={() => onSendAccess(row)}>{sendingAccessId === row.id ? "Gerando..." : "Enviar acesso"}</button><button type="button" onClick={() => onEdit(row)}>Editar</button><button className={row.active ? "danger-action" : "success-action"} type="button" onClick={() => onToggle(row)}>{row.active ? "Desativar" : "Ativar"}</button></div></td></tr>)}</tbody></table>; }
+function StoreTable({ rows, onEdit, onToggle }: { rows: AdminStore[]; onEdit: (row: AdminStore) => void; onToggle: (row: AdminStore) => void }) { return <table><thead><tr><th>Vendedor</th><th>Cliente</th><th>Ações</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.shortName} tone="dark" /></td><td>{row.client.name}</td><td><span className="table-number">{row._count.campaigns}</span></td><td><Status active={row.active} /></td><td><Actions active={row.active} onEdit={() => onEdit(row)} onToggle={() => onToggle(row)} /></td></tr>)}</tbody></table>; }
+function CampaignTable({ rows, onEdit, onStatus }: { rows: AdminCampaign[]; onEdit: (row: AdminCampaign) => void; onStatus: (row: AdminCampaign, status: AdminCampaign["status"]) => void }) { return <table><thead><tr><th>Ação</th><th>Cliente / vendedor</th><th>Período</th><th>Leads</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.id} tone="violet" /></td><td>{row.client.name}<small>{row.store.shortName}</small></td><td>{formatDate(row.startDate)} — {formatDate(row.endDate)}</td><td><span className="table-number">{row._count.leads}</span></td><td><Status active={row.status === "ACTIVE"} label={campaignStatus(row.status)} /></td><td><div className="admin-actions"><button type="button" onClick={() => onEdit(row)}>Editar</button><button className={row.status === "ACTIVE" ? "danger-action" : "success-action"} type="button" onClick={() => onStatus(row, row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}>{row.status === "ACTIVE" ? "Desativar" : "Ativar"}</button></div></td></tr>)}</tbody></table>; }
 function UserTable({ rows, onEdit, onToggle }: { rows: AdminUser[]; onEdit: (row: AdminUser) => void; onToggle: (row: AdminUser) => void }) { return <table><thead><tr><th>Usuário</th><th>Perfil</th><th>Cliente</th><th>Último acesso</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.email} tone="green" /></td><td>{roleLabel(row.role)}</td><td>{row.client?.name || "SysOn"}</td><td>{row.lastLoginAt ? formatDate(row.lastLoginAt) : "Nunca"}</td><td><Status active={row.active} /></td><td><Actions active={row.active} onEdit={() => onEdit(row)} onToggle={() => onToggle(row)} /></td></tr>)}</tbody></table>; }
 
 function TextField({ label, value = "", onChange, type = "text", required = true, ...input }: { label: string; value?: string; onChange: (value: string) => void; type?: string; required?: boolean; minLength?: number; maxLength?: number }) { return <label className="admin-field"><span>{label}</span><input {...input} type={type} value={value} required={required} onChange={(event) => onChange(event.target.value)} /></label>; }

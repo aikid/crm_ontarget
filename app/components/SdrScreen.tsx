@@ -75,6 +75,7 @@ export default function SdrScreen() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [selectedResult, setSelectedResult] = useState<ResultType | null>(null);
+  const [vehicleInterest, setVehicleInterest] = useState("");
   const [notes, setNotes] = useState("");
   const [callbackAt, setCallbackAt] = useState(localDateTimeInput);
   const [saving, setSaving] = useState(false);
@@ -125,6 +126,7 @@ export default function SdrScreen() {
       setCallId(null);
       callIdRef.current = null;
       setSelectedResult(null);
+      setVehicleInterest("");
       setNotes("");
       setCallbackAt(localDateTimeInput());
     } catch (cause) {
@@ -156,7 +158,7 @@ export default function SdrScreen() {
       })
       .catch((cause) => {
         if (active) {
-          setError(cause instanceof Error ? cause.message : "Não foi possível carregar as campanhas.");
+          setError(cause instanceof Error ? cause.message : "Não foi possível carregar as ações.");
           setLoading(false);
         }
       });
@@ -361,6 +363,7 @@ export default function SdrScreen() {
     try {
       await onTargetApi.saveOutcome(lead.id, {
         outcome: selectedResult,
+        vehicle: vehicleInterest.trim() || undefined,
         notes: notes || undefined,
         ...(selectedResult === "CALLBACK" ? { callback: { scheduledAt: new Date(callbackAt).toISOString() } } : {}),
         ...(callId ? { callId, durationSec: callSeconds } : {}),
@@ -391,6 +394,7 @@ export default function SdrScreen() {
       callIdRef.current = null;
       setQueueEmpty(false);
       setSelectedResult(null);
+      setVehicleInterest("");
       setNotes("");
       await refreshQueueSummary(campaignId);
     } catch (cause) {
@@ -412,7 +416,7 @@ export default function SdrScreen() {
       <header className="sdr-topbar">
         <div className="sdr-context">
           <div>
-            <span>Campanha ativa</span>
+            <span>Ação</span>
             <select className="sdr-campaign-select" value={campaignId} onChange={(event) => void changeCampaign(event.target.value)} disabled={loading}>
               {campaigns.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
             </select>
@@ -443,7 +447,7 @@ export default function SdrScreen() {
           ) : !lead ? (
             <div className="sdr-empty-state">
               <strong>{queueEmpty ? "Fila concluída por enquanto" : "Nenhum lead em atendimento"}</strong>
-              <p>{callbacks.some((item) => item.due) ? "Há retornos disponíveis na coluna lateral." : queueSummary?.remaining ? `${queueSummary.remaining} ${plural(queueSummary.remaining, "lead restante", "leads restantes")}, mas nenhum está livre neste momento.` : "Não há leads livres nesta campanha neste momento."}</p>
+              <p>{callbacks.some((item) => item.due) ? "Há retornos disponíveis na coluna lateral." : queueSummary?.remaining ? `${queueSummary.remaining} ${plural(queueSummary.remaining, "lead restante", "leads restantes")}, mas nenhum está livre neste momento.` : "Não há leads livres nesta ação neste momento."}</p>
               <button type="button" onClick={() => void claimNext(campaignId)}>Atualizar fila</button>
             </div>
           ) : (
@@ -456,10 +460,10 @@ export default function SdrScreen() {
                   <div className="attempt-box"><span>TENTATIVAS DE CONTATO</span><strong>Tentativa {attemptNumber} de 3</strong><div className="attempt-dots">{[1, 2, 3].map((item) => <i key={item} className={item <= attemptNumber ? "filled" : ""} />)}</div></div>
                 </div>
                 <div className="lead-details-grid">
-                  <div><span>Loja de origem</span><strong>{lead.store.shortName}</strong></div>
-                  <div><span>Campanha</span><strong>{lead.campaign.name}</strong></div>
+                  <div><span>Vendedor</span><strong>{lead.store.name}</strong></div>
+                  <div><span>Ação</span><strong>{lead.campaign.name}</strong></div>
                   <div><span>Origem</span><strong>{lead.origin || "Não informada"}</strong></div>
-                  <div><span>Ação</span><strong>{lead.action || lead.vehicle || "Não informada"}</strong></div>
+                  <div><span>Evento da base</span><strong>{lead.action || "Não informado"}</strong></div>
                   <div><span>Dia da ação</span><strong>{lead.actionDate || "Não informado"}</strong></div>
                   <div><span>Último contato</span><strong>{lead.lastContact}</strong></div>
                 </div>
@@ -480,6 +484,7 @@ export default function SdrScreen() {
                   {selectedResult === "CALLBACK" && <div className="form-grid callback-form"><label className="form-field"><span>Data e horário do retorno <b>*</b></span><input type="datetime-local" value={callbackAt} min={localDateTimeInput(new Date())} onChange={(event) => setCallbackAt(event.target.value)} /></label></div>}
                   {selectedResult === "NO_ANSWER" && <div className="no-answer-note"><div><span>TENTATIVA ATUAL</span><strong>{attemptNumber} de 3</strong></div><div><strong>{attemptNumber === 3 ? "Última tentativa" : "Lead voltará à fila"}</strong><p>{attemptNumber === 3 ? "Ao salvar, o limite será atingido e o lead será encerrado." : "O lead permanece elegível para uma nova tentativa."}</p></div></div>}
                   {selectedResult === "INVALID_NUMBER" && <div className="invalid-note"><span>!</span><div><strong>O telefone será marcado como inválido.</strong><p>O lead não retornará à fila operacional.</p></div></div>}
+                  <div className="form-grid"><label className="form-field full"><span>Veículo de interesse</span><input type="text" value={vehicleInterest} maxLength={120} onChange={(event) => setVehicleInterest(event.target.value)} placeholder="Informe o veículo mencionado pelo cliente" /></label></div>
                   <div className="form-grid"><label className="form-field full"><span>Observações</span><textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} placeholder="Registre apenas informações úteis para o histórico do lead." /></label></div>
                   <div className="form-footer"><span>Registre o desfecho do contato</span><button className="primary-button save-button" type="button" disabled={saving || (selectedResult === "CALLBACK" && !callbackAt)} onClick={() => void saveOutcome()}>{saving ? "Salvando…" : "Salvar e próximo lead →"}</button></div>
                 </div>}
