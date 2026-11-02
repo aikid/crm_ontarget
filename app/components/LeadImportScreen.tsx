@@ -192,7 +192,7 @@ export default function LeadImportScreen() {
         <aside className="import-rules-card">
           <span>COLUNAS DO MODELO</span>
           <h2>Formato esperado</h2>
-          <ul><li><b>nome</b><small>Obrigatório</small></li><li><b>telefone</b><small>Obrigatório</small></li><li><b>veículo</b><small>Obrigatório</small></li><li><b>origem</b><small>Obrigatório</small></li><li><b>motivo</b><small>Opcional</small></li></ul>
+          <ul><li><b>nome</b><small>NOME</small></li><li><b>telefone</b><small>TELEFONE</small></li><li><b>veículo</b><small>VEÍCULO INTERESSE ou CARRO</small></li><li><b>origem</b><small>ORIGEM ou ORIGEM BASE</small></li><li><b>motivo</b><small>MOTIVO ou ORIGEM/BASE/MOTIVO</small></li></ul>
           <p>As linhas válidas são importadas. Linhas com erro permanecem no relatório para correção.</p>
         </aside>
       </div>
