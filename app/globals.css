@@ -1263,11 +1263,24 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .import-card select { width: 100%; min-height: 43px; padding: 0 11px; border: 1px solid #dce0e9; border-radius: 8px; background: #fff; color: #1d273e; font: inherit; outline: 0; }
 .import-card select:focus { border-color: #6578d9; box-shadow: 0 0 0 3px rgba(52,75,202,.1); }
 .import-card .file-step { grid-column: 1 / -1; margin: 12px 0 0; padding-top: 20px; border-top: 1px solid #eceef3; }
+.import-source-tabs { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1px solid #e0e4ed; border-radius: 11px; background: #f5f6fa; }
+.import-source-tabs button { min-height: 39px; border: 0; border-radius: 8px; background: transparent; color: #727b8e; font-size: 12px; font-weight: 750; cursor: pointer; }
+.import-source-tabs button.active { color: #344bca; background: #fff; box-shadow: 0 3px 10px rgba(24,35,69,.08); }
 .import-dropzone { grid-column: 1 / -1; display: grid; min-height: 155px; place-items: center; align-content: center; gap: 6px; border: 1.5px dashed #bbc4df; border-radius: 11px; background: #f9faff; color: #3d4965; cursor: pointer; transition: border-color .18s, background .18s; }
 .import-dropzone:hover, .import-dropzone.selected { border-color: #6074da; background: #f3f5ff; }
 .import-dropzone input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .import-dropzone .import-file-icon { display: grid; width: 35px; height: 35px; place-items: center; border-radius: 10px; background: #e9edff; color: #344bca; font-size: 17px; font-weight: 800; }
 .import-dropzone strong { font-size: 14px; }.import-dropzone small { color: #858ea1; font-size: 11px; }
+.google-sheets-fields { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr); gap: 14px; padding: 18px; border: 1px solid #e1e5ef; border-radius: 11px; background: #fafbfe; }
+.google-sheets-fields > label { display: grid; gap: 7px; color: #465068; font-size: 12px; font-weight: 700; }
+.google-sheets-fields label span small { color: #9299a8; font-weight: 500; }
+.google-sheets-fields input { width: 100%; min-height: 43px; padding: 0 11px; border: 1px solid #dce0e9; border-radius: 8px; background: #fff; color: #1d273e; font: inherit; outline: 0; }
+.google-sheets-fields input:focus { border-color: #6578d9; box-shadow: 0 0 0 3px rgba(52,75,202,.1); }
+.google-sheets-access { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 11px; padding: 13px 14px; border: 1px solid #dbe7df; border-radius: 9px; background: #f5fbf7; color: #466255; }
+.google-sheets-access > span { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #dff3e6; color: #218254; font-size: 12px; font-weight: 900; }
+.google-sheets-access strong { display: block; color: #294438; font-size: 12px; }.google-sheets-access p { margin: 3px 0 0; font-size: 11px; line-height: 1.45; }
+.google-sheets-access code { display: inline-block; max-width: 100%; margin-top: 6px; padding: 5px 8px; overflow: hidden; border-radius: 6px; background: #fff; color: #344bca; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.google-sheets-access.missing { border-color: #eedfc7; background: #fff9f0; color: #80633c; }.google-sheets-access.missing > span { color: #a86d1d; background: #f7e9d3; }.google-sheets-access.missing strong { color: #6f512b; }
 .import-submit { grid-column: 1 / -1; min-height: 44px; border: 0; border-radius: 9px; background: #344bca; color: #fff; font-size: 13px; font-weight: 750; cursor: pointer; }
 .import-submit:disabled { opacity: .6; cursor: not-allowed; }
 .import-rules-card { padding: 24px; }
@@ -1297,7 +1310,7 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .import-error-list .import-error-limit { padding: 12px 0; color: #7a8394; font-size: 11px; text-align: center; }
 
 @media (max-width: 1050px) { .import-layout { grid-template-columns: 1fr; }.import-rules-card { order: -1; }.import-result { grid-template-columns: 1fr repeat(3, 100px); } }
-@media (max-width: 760px) { .import-screen { padding: 24px 15px 45px; }.import-card form { grid-template-columns: 1fr; }.import-result { grid-template-columns: 1fr 1fr; }.import-result > div { border-bottom: 1px solid #e7eae8; }.import-history { overflow-x: auto; } }
+@media (max-width: 760px) { .import-screen { padding: 24px 15px 45px; }.import-card form { grid-template-columns: 1fr; }.google-sheets-fields { grid-template-columns: 1fr; }.import-result { grid-template-columns: 1fr 1fr; }.import-result > div { border-bottom: 1px solid #e7eae8; }.import-history { overflow-x: auto; } }
 /* Feedback de carregamento e dashboards com hierarquia visual reforçada */
 .app-boot-screen { min-height: 100vh; }
 .loading-overlay { position: fixed; z-index: 2000; inset: 0; display: grid; padding: 24px; place-items: center; background: rgba(17, 20, 27, .36); backdrop-filter: blur(5px); animation: loading-overlay-in .18s ease-out both; }

@@ -214,7 +214,10 @@ export default function SdrScreen({ onBack }: SdrScreenProps) {
           setError(cause instanceof Error ? cause.message : "A reserva do lead expirou.");
         });
     }, 5 * 60_000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      void onTargetApi.releaseLead(reservedLeadId).catch(() => undefined);
+    };
   }, [reservedLeadId]);
 
   useEffect(() => {

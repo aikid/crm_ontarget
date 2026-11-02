@@ -98,6 +98,11 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.doesNotMatch(admin, /deleteClient|deleteStore|deleteCampaign/i);
   assert.match(leadImport, /modelo-importacao-leads\.csv/);
   assert.match(leadImport, /\.csv,\.xlsx/);
+  assert.match(leadImport, /Google Sheets/);
+  assert.match(leadImport, /googleSheetsImportConfig/);
+  assert.match(leadImport, /importGoogleSheets/);
+  assert.match(api, /\/api\/admin\/imports\/google-sheets\/config/);
+  assert.match(api, /\/api\/admin\/imports\/google-sheets/);
   assert.match(leadImport, /Linhas rejeitadas|Rejeitadas/);
   assert.match(loadingOverlay, /role="status"/);
   assert.match(loadingOverlay, /aria-busy="true"/);
@@ -117,6 +122,7 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(asteriskSip, /prepareAudioOutput/);
   assert.match(sdr, /Conectando ramal/);
   assert.match(sdr, /asteriskSipSession/);
+  assert.match(sdr, /releaseLead\(reservedLeadId\)/);
   assert.match(ringbackTone, /RING_CYCLE_MS = 5_000/);
   assert.match(ringbackTone, /425/);
   assert.match(ringbackTone, /context\.close/);

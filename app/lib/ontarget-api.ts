@@ -83,7 +83,7 @@ export type ImportErrorRow = {
 export type ImportBatch = {
   id: string;
   fileName: string;
-  fileType: "CSV" | "XLSX";
+  fileType: "CSV" | "XLSX" | "GOOGLE_SHEETS";
   status: "COMPLETED" | "COMPLETED_WITH_ERRORS" | "FAILED";
   totalRows: number;
   importedRows: number;
@@ -94,6 +94,12 @@ export type ImportBatch = {
   campaign: { id: string; name: string };
   uploadedBy: { id: string; name: string };
   errors?: ImportErrorRow[];
+};
+
+export type GoogleSheetsImportConfig = {
+  configured: boolean;
+  serviceAccountEmail: string | null;
+  error?: string;
 };
 
 export type ApiLead = {
@@ -313,5 +319,10 @@ export const onTargetApi = {
     imports: () => request<{ data: ImportBatch[] }>("/api/admin/imports"),
     importBatch: (id: string) => request<ImportBatch>(`/api/admin/imports/${id}`),
     importLeads: (payload: FormData) => request<ImportBatch>("/api/admin/imports", { method: "POST", body: payload }),
+    googleSheetsImportConfig: () => request<GoogleSheetsImportConfig>("/api/admin/imports/google-sheets/config"),
+    importGoogleSheets: (payload: { clientId: string; storeId: string; campaignId: string; spreadsheetUrl: string; sheetName?: string }) => request<ImportBatch>("/api/admin/imports/google-sheets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   },
 };
