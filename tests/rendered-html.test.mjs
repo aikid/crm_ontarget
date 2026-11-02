@@ -133,6 +133,9 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(sdr, /callPhase !== "idle" && <article className="result-card">/);
   assert.match(sdr, /Preparando ligação…" : "Ligar"/);
   assert.doesNotMatch(sdr, /Ligar com Onvox|Asterisk \+ OverTele/);
+  assert.match(sdr, /id: "DIRECTED", label: "Direcionado"/);
+  assert.match(sdr, /id: "NOT_QUALIFIED", label: "Sem interesse"/);
+  assert.doesNotMatch(sdr, /label: "Recusou"|label: "Contato realizado"|label: "Qualificado"|label: "Não qualificado"/);
   assert.match(ringbackTone, /RING_CYCLE_MS = 5_000/);
   assert.match(ringbackTone, /425/);
   assert.match(ringbackTone, /context\.close/);

@@ -13,18 +13,16 @@ import {
   type SdrQueueSummary,
 } from "../lib/ontarget-api";
 
-type ResultType = "NO_ANSWER" | "INVALID_NUMBER" | "REFUSED" | "CONTACTED" | "QUALIFIED" | "NOT_QUALIFIED" | "CALLBACK";
+type ResultType = "NO_ANSWER" | "INVALID_NUMBER" | "DIRECTED" | "NOT_QUALIFIED" | "CALLBACK";
 type CallPhase = "idle" | "calling" | "active" | "ended";
 type SipRegistration = "connecting" | "ready" | "error";
 
 const resultOptions: Array<{ id: ResultType; label: string; shortcut: string; detail: string }> = [
   { id: "NO_ANSWER", label: "Não atendeu", shortcut: "1", detail: "Registrar nova tentativa" },
   { id: "INVALID_NUMBER", label: "Número inválido", shortcut: "2", detail: "Retirar da fila" },
-  { id: "REFUSED", label: "Recusou", shortcut: "3", detail: "Não deseja prosseguir" },
-  { id: "CONTACTED", label: "Contato realizado", shortcut: "4", detail: "Atendimento concluído" },
-  { id: "QUALIFIED", label: "Qualificado", shortcut: "5", detail: "Oportunidade confirmada" },
-  { id: "NOT_QUALIFIED", label: "Não qualificado", shortcut: "6", detail: "Fora do perfil esperado" },
-  { id: "CALLBACK", label: "Retorno solicitado", shortcut: "7", detail: "Agendar retorno simples" },
+  { id: "DIRECTED", label: "Direcionado", shortcut: "3", detail: "Lead qualificado e direcionado" },
+  { id: "NOT_QUALIFIED", label: "Sem interesse", shortcut: "4", detail: "Lead não deseja prosseguir" },
+  { id: "CALLBACK", label: "Retorno solicitado", shortcut: "5", detail: "Agendar retorno simples" },
 ];
 
 function formatTimer(totalSeconds: number) {
