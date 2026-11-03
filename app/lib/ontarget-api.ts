@@ -138,6 +138,13 @@ export type ApiLead = {
   qualification: null | { type: string; date: string; notes: string | null };
   audit: { status: string; confidence?: number | null; evidence?: string | null; auditedAt?: string | null };
   recordingAvailable: boolean;
+  recordings: Array<{
+    callId: string;
+    status: string;
+    recordedAt: string;
+    durationSec: number | null;
+    expiresAt: string;
+  }>;
   reservation: null | {
     sdr: { id: string; name: string; initials: string };
     reservedAt: string;
@@ -189,7 +196,6 @@ export type AsteriskCall = {
   durationSec: number | null;
   disconnectReason: string | null;
   q850Cause: number | null;
-  recording: null | { status: string; name: string };
   reused?: boolean;
   nextStep?: string;
 };
@@ -262,6 +268,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
+async function requestBlob(path: string): Promise<Blob> {
+  const response = await fetch(`${API_URL}${path}`, {
+    cache: "no-store",
+    credentials: "include",
+    headers: sessionUserId ? { "X-OnTarget-Session-User": sessionUserId } : undefined,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+    if (response.status === 401) {
+      csrfToken = null;
+      sessionUserId = null;
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_SESSION_INVALID_EVENT));
+    }
+    throw new ApiError(body?.error?.message || `Erro ${response.status} ao obter a gravação.`, response.status);
+  }
+  return response.blob();
+}
+
 export const onTargetApi = {
   login: (email: string, password: string) => request<SessionResponse>("/api/auth/login", {
     method: "POST",
@@ -284,6 +308,7 @@ export const onTargetApi = {
   campaignLeads: (campaignId: string, filters?: Record<string, QueryValue>) => request<{ data: ApiLead[]; pagination: { page: number; pageSize: number; total: number; pages: number } }>(`/api/campaigns/${campaignId}/leads${queryString(filters)}`),
   operationDashboard: (filters?: Record<string, QueryValue>) => request<OperationDashboard>(`/api/operations/dashboard${queryString(filters)}`),
   operationLeads: (filters?: Record<string, QueryValue>) => request<{ data: ApiLead[]; pagination: { page: number; pageSize: number; total: number; pages: number } }>(`/api/operations/leads${queryString(filters)}`),
+  callRecording: (callId: string) => requestBlob(`/api/telephony/asterisk/calls/${callId}/recording`),
   lead: (leadId: string) => request<ApiLead>(`/api/leads/${leadId}`),
   sdrCampaigns: () => request<{ data: SdrCampaign[] }>("/api/sdr/campaigns"),
   claimNextLead: (campaignId: string) => request<ApiLead>("/api/sdr/queue/claim", { method: "POST", body: JSON.stringify({ campaignId }) }),

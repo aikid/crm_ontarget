@@ -24,6 +24,43 @@ const statusOptions = [
   ["INVALID_NUMBER", "Número inválido"],
 ];
 
+function ManagerRecording({ recording }: { recording: ApiLead["recordings"][number] }) {
+  const [audioUrl, setAudioUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => () => {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+  }, [audioUrl]);
+
+  async function loadRecording() {
+    setLoading(true);
+    setError("");
+    try {
+      const blob = await onTargetApi.callRecording(recording.callId);
+      setAudioUrl(URL.createObjectURL(blob));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível carregar a gravação.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const recordedAt = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo",
+  }).format(new Date(recording.recordedAt));
+  const expiresAt = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short", timeZone: "America/Sao_Paulo",
+  }).format(new Date(recording.expiresAt));
+
+  return <div className="manager-recording-item">
+    <div><strong>Ligação de {recordedAt}</strong><small>Disponível até {expiresAt}</small></div>
+    {!audioUrl && <button type="button" onClick={() => void loadRecording()} disabled={loading}>{loading ? "Carregando..." : "Ouvir gravação"}</button>}
+    {audioUrl && <div className="manager-recording-controls"><audio controls preload="metadata" src={audioUrl}>Seu navegador não suporta áudio.</audio><a href={audioUrl} download={`gravacao-${recording.callId}.wav`}>Baixar gravação</a></div>}
+    {error && <p className="manager-recording-error">{error}</p>}
+  </div>;
+}
+
 export default function LeadSearchScreen() {
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [stores, setStores] = useState<AdminStore[]>([]);
@@ -116,6 +153,7 @@ export default function LeadSearchScreen() {
       <div className="drawer-lead-identity"><span className="drawer-avatar">{selectedLead.initials}</span><div><h2 id="lead-history-title">{selectedLead.name}</h2><p>{selectedLead.phone} • {selectedLead.action || selectedLead.vehicle || "Sem ação informada"}</p><span className="drawer-status"><i />{selectedLead.status}</span></div></div>
       <section className="drawer-section"><div className="drawer-section-heading"><span className="drawer-section-icon">ID</span><div><h3>Dados do lead</h3><p>Origem e relacionamento comercial</p></div></div><div className="drawer-info-grid"><div><span>Cliente</span><strong>{clientName(selectedLead.clientId)}</strong></div><div><span>Loja</span><strong>{selectedLead.store.name}</strong></div><div><span>Campanha</span><strong>{selectedLead.campaign.name}</strong></div><div><span>Origem</span><strong>{selectedLead.origin || "Não informada"}</strong></div><div><span>Ação</span><strong>{selectedLead.action || "Não informada"}</strong></div><div><span>Dia da ação</span><strong>{selectedLead.actionDate || "Não informado"}</strong></div><div><span>Tentativas</span><strong>{selectedLead.attempts} de 3</strong></div></div></section>
       <section className="drawer-section"><div className="drawer-section-heading"><span className="drawer-section-icon">H</span><div><h3>Tentativas e resultados</h3><p>Histórico persistido no backend</p></div></div>{selectedLead.history.length ? <div className="drawer-timeline">{selectedLead.history.map((item, index) => <div key={item.id} className={index === selectedLead.history.length - 1 ? "latest" : ""}><i>{index + 1}</i><span>{item.date}<small>{item.time}</small></span><p><strong>{item.result}</strong><small>{item.detail}</small></p><span className="timeline-result">{item.title}</span></div>)}</div> : <div className="lead-history-empty">Nenhuma tentativa registrada.</div>}</section>
+      <section className="drawer-section"><div className="drawer-section-heading"><span className="drawer-section-icon">AU</span><div><h3>Gravações das ligações</h3><p>Acesso exclusivo do gestor • retenção de 60 dias</p></div></div>{selectedLead.recordings.length ? <div className="manager-recording-list">{selectedLead.recordings.map((recording) => <ManagerRecording key={recording.callId} recording={recording} />)}</div> : <div className="recording-unavailable"><span>—</span><p><strong>Nenhuma gravação disponível</strong><small>As gravações expiradas são removidas automaticamente.</small></p></div>}</section>
       {selectedLead.callback && <section className="drawer-section lead-callback-detail"><div className="drawer-section-heading"><span className="drawer-section-icon">↻</span><div><h3>Retorno solicitado</h3><p>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(selectedLead.callback.scheduledAt))}</p></div></div><p>{selectedLead.callback.notes || "Sem observações."}</p></section>}
     </div></aside></div>}
   </div>;

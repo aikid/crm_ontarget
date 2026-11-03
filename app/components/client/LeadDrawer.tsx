@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { getStore, type Campaign, type PortalLead } from "../../data/clientPortalData";
 
 type LeadDrawerProps = {
@@ -9,14 +9,7 @@ type LeadDrawerProps = {
   onClose: () => void;
 };
 
-function formatAudioTime(seconds: number) {
-  return `${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
-}
-
 export default function LeadDrawer({ lead, campaign, onClose }: LeadDrawerProps) {
-  const [playing, setPlaying] = useState(false);
-  const [audioSeconds, setAudioSeconds] = useState(0);
-  const duration = 98;
   const store = getStore(lead.storeId)!;
 
   useEffect(() => {
@@ -24,20 +17,6 @@ export default function LeadDrawer({ lead, campaign, onClose }: LeadDrawerProps)
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
-
-  useEffect(() => {
-    if (!playing) return;
-    const timer = window.setInterval(() => {
-      setAudioSeconds((seconds) => {
-        if (seconds >= duration) {
-          setPlaying(false);
-          return 0;
-        }
-        return seconds + 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [playing]);
 
   return (
     <div className="lead-drawer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -114,16 +93,6 @@ export default function LeadDrawer({ lead, campaign, onClose }: LeadDrawerProps)
             )}
           </section>
 
-          <section className="drawer-section recording-section">
-            <div className="drawer-section-heading"><span className="drawer-section-icon">AU</span><div><h3>Gravação da ligação</h3><p>Registro do contato final</p></div></div>
-            {lead.recordingAvailable ? (
-              <div className="mock-audio-player">
-                <button type="button" onClick={() => setPlaying((value) => !value)} aria-label={playing ? "Pausar ligação" : "Ouvir ligação"}>{playing ? "Ⅱ" : "▶"}</button>
-                <div><div className="audio-track"><span style={{ width: `${(audioSeconds / duration) * 100}%` }} /></div><span>{formatAudioTime(audioSeconds)}</span><span>{formatAudioTime(duration)}</span></div>
-              </div>
-            ) : <div className="recording-unavailable"><span>—</span><p><strong>Gravação indisponível</strong><small>Este contato não possui áudio liberado para consulta.</small></p></div>}
-            <p className="recording-notice">Disponibilidade da gravação sujeita às permissões da campanha.</p>
-          </section>
         </div>
       </aside>
     </div>

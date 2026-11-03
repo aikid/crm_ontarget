@@ -830,6 +830,16 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .recording-unavailable p { display: flex; margin: 0; flex-direction: column; gap: 2px; }
 .recording-unavailable strong { font-size: 8px; }
 .recording-unavailable small { color: #8c94a1; font-size: 7px; }
+.manager-recording-list { display: grid; gap: 10px; margin-top: 13px; }
+.manager-recording-item { display: grid; grid-template-columns: minmax(140px, 1fr) auto; align-items: center; gap: 10px; padding: 12px; border: 1px solid #e8e8ec; border-radius: 11px; background: #fafafa; }
+.manager-recording-item > div:first-child { display: flex; flex-direction: column; gap: 3px; }
+.manager-recording-item strong { color: #31343b; font-size: 9px; }
+.manager-recording-item small { color: #898e98; font-size: 7px; }
+.manager-recording-item > button, .manager-recording-controls a { display: inline-flex; min-height: 31px; padding: 0 11px; align-items: center; justify-content: center; border: 1px solid #f0c4c7; border-radius: 8px; color: #b91520; background: #fff; font-size: 8px; font-weight: 700; cursor: pointer; text-decoration: none; }
+.manager-recording-item > button:disabled { cursor: wait; opacity: .6; }
+.manager-recording-controls { display: flex; grid-column: 1 / -1; align-items: center; gap: 9px; }
+.manager-recording-controls audio { width: min(100%, 360px); height: 34px; }
+.manager-recording-error { grid-column: 1 / -1; margin: 0; color: #b91520; font-size: 8px; }
 
 @media (max-width: 1280px) {
   .client-main { margin-left: 218px; }

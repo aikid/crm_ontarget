@@ -29,12 +29,13 @@ test("renderiza a aplicação protegida sem expor conteúdo antes da sessão", a
 });
 
 test("mantém sessão, credenciais e CSRF centralizados no cliente da API", async () => {
-  const [layout, page, sidebar, clientSidebar, clientPortal, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
+  const [layout, page, sidebar, clientSidebar, clientPortal, clientLeadDrawer, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Sidebar.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/client/ClientSidebar.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/client/ClientPortal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/client/LeadDrawer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/AuthProvider.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/LoginScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -101,6 +102,12 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(leadSearch, /Consulta de leads/);
   assert.match(leadSearch, /HISTÓRICO OPERACIONAL/);
   assert.match(leadSearch, /attempt-indicator/);
+  assert.match(leadSearch, /Gravações das ligações/);
+  assert.match(leadSearch, /Ouvir gravação/);
+  assert.match(leadSearch, /Baixar gravação/);
+  assert.match(leadSearch, /<audio controls/);
+  assert.match(api, /\/api\/telephony\/asterisk\/calls\/\$\{callId\}\/recording/);
+  assert.doesNotMatch(clientLeadDrawer, /Gravação da ligação|Ouvir ligação|mock-audio-player/);
   assert.doesNotMatch(api, /x-user-id|x-user-email/i);
   assert.match(admin, /Clientes/);
   assert.match(admin, /Vendedores/);
