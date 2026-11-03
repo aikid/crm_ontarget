@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AUTH_SESSION_INVALID_EVENT, onTargetApi, type SessionUser } from "../../lib/ontarget-api";
 import LoadingOverlay from "../ui/LoadingOverlay";
+import ProfileModal from "./ProfileModal";
 
 type AuthContextValue = {
   user: SessionUser | null;
@@ -10,6 +11,7 @@ type AuthContextValue = {
   loggingOut: boolean;
   login: (email: string, password: string) => Promise<SessionUser>;
   logout: () => Promise<void>;
+  openProfile: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -19,6 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
   const logoutPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
@@ -79,14 +82,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return request;
   }, []);
 
+  const updateProfile = useCallback(async (payload: { name?: string; newPassword?: string }) => {
+    const result = await onTargetApi.updateProfile(payload);
+    setUser(result.user);
+  }, []);
+
+  const openProfile = useCallback(() => setProfileOpen(true), []);
+
   const value = useMemo(
-    () => ({ user, loading, loggingOut, login, logout }),
-    [user, loading, loggingOut, login, logout],
+    () => ({ user, loading, loggingOut, login, logout, openProfile }),
+    [user, loading, loggingOut, login, logout, openProfile],
   );
 
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {profileOpen && user && <ProfileModal user={user} onClose={() => setProfileOpen(false)} onUpdate={updateProfile} />}
       <LoadingOverlay
         show={loggingOut}
         title="Encerrando sua sessão"

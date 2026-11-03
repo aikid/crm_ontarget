@@ -1,4 +1,5 @@
 import type { ClientScreen } from "./ClientPortal";
+import { useAuth } from "../auth/AuthProvider";
 
 type ClientSidebarProps = {
   activeScreen: ClientScreen;
@@ -22,6 +23,7 @@ function ClientNavIcon({ name }: { name: string }) {
 }
 
 export default function ClientSidebar({ activeScreen, onNavigate, clientName, onLogout, loggingOut }: ClientSidebarProps) {
+  const { openProfile } = useAuth();
   return (
     <aside className="client-sidebar">
       <div className="client-brand">
@@ -55,6 +57,10 @@ export default function ClientSidebar({ activeScreen, onNavigate, clientName, on
 
       <div className="client-sidebar-spacer" />
       <div className="client-sidebar-footer">
+        <button type="button" onClick={openProfile}>
+          <span aria-hidden="true">○</span>
+          Minha conta
+        </button>
         <button type="button" onClick={onLogout} disabled={loggingOut} aria-busy={loggingOut}>
           <span>{loggingOut ? <i className="logout-button-spinner" aria-hidden="true" /> : "→"}</span>
           {loggingOut ? "Saindo..." : "Sair"}

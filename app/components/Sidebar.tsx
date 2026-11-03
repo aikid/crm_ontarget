@@ -1,5 +1,6 @@
 import type { Screen } from "../page";
 import type { SessionUser } from "../lib/ontarget-api";
+import { useAuth } from "./auth/AuthProvider";
 
 type SidebarProps = {
   activeScreen: Screen;
@@ -24,12 +25,14 @@ function NavIcon({ name }: { name: string }) {
     grid: <><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></>,
     upload: <><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v5h16v-5"/></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    user: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>,
     logout: <><path d="M10 17l5-5-5-5M15 12H3"/><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></>,
   };
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
 export default function Sidebar({ activeScreen, onNavigate, user, onLogout, loggingOut }: SidebarProps) {
+  const { openProfile } = useAuth();
   const visibleItems = user.role === "SDR"
     ? navItems.filter((item) => item.id === "sdr")
     : navItems.filter((item) => !item.sdrOnly);
@@ -72,6 +75,9 @@ export default function Sidebar({ activeScreen, onNavigate, user, onLogout, logg
             <strong>{user.name}</strong>
             <span>{user.role === "GESTOR" ? "Gestor" : "SDR"}</span>
           </div>
+          <button type="button" aria-label="Abrir meu perfil" title="Minha conta" onClick={openProfile}>
+            <NavIcon name="user" />
+          </button>
           <button
             type="button"
             aria-label={loggingOut ? "Encerrando sessão" : "Sair"}

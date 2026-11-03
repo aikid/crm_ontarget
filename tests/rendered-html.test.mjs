@@ -29,7 +29,7 @@ test("renderiza a aplicação protegida sem expor conteúdo antes da sessão", a
 });
 
 test("mantém sessão, credenciais e CSRF centralizados no cliente da API", async () => {
-  const [layout, page, sidebar, clientSidebar, clientPortal, clientLeadDrawer, provider, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
+  const [layout, page, sidebar, clientSidebar, clientPortal, clientLeadDrawer, provider, profile, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Sidebar.tsx", import.meta.url), "utf8"),
@@ -37,6 +37,7 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
     readFile(new URL("../app/components/client/ClientPortal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/client/LeadDrawer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/AuthProvider.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/auth/ProfileModal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/auth/LoginScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/ontarget-api.ts", import.meta.url), "utf8"),
@@ -65,6 +66,13 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(provider, /logout-error-toast/);
   assert.match(provider, /AUTH_SESSION_INVALID_EVENT/);
   assert.match(provider, /visibilitychange/);
+  assert.match(provider, /ProfileModal/);
+  assert.match(sidebar, /Abrir meu perfil/);
+  assert.match(clientSidebar, /Minha conta/);
+  assert.match(profile, /Perfil e segurança/);
+  assert.doesNotMatch(profile, /Senha atual/);
+  assert.match(profile, /Nova senha/);
+  assert.match(profile, /e-mail, solicite ao gestor/);
   assert.match(login, /autoComplete="current-password"/);
   assert.match(login, /Bem-vindo de volta/);
   assert.match(login, /aria-label=\{showPassword \? "Ocultar senha" : "Mostrar senha"\}/);
@@ -79,6 +87,7 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(api, /"X-CSRF-Token"/);
   assert.match(api, /\/api\/auth\/login/);
   assert.match(api, /\/api\/auth\/logout/);
+  assert.match(api, /\/api\/auth\/profile/);
   assert.match(api, /\/api\/sdr\/queue\/claim/);
   assert.match(api, /\/api\/sdr\/queue\/renew/);
   assert.match(api, /\/api\/sdr\/queue\/summary/);

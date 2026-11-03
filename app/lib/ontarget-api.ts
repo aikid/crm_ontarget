@@ -310,6 +310,10 @@ export const onTargetApi = {
     }
   },
   session: () => request<SessionResponse>("/api/auth/session"),
+  updateProfile: (payload: { name?: string; newPassword?: string }) => request<{ user: SessionUser }>("/api/auth/profile", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }),
   campaigns: (clientId: string) => request<{ data: ApiCampaign[] }>(`/api/clients/${clientId}/campaigns`),
   stores: (clientId: string) => request<{ data: Array<{ id: string; clientId: string; name: string; shortName: string }> }>(`/api/clients/${clientId}/stores`),
   campaignDashboard: <T = unknown>(campaignId: string, storeId = "all") => request<T>(`/api/campaigns/${campaignId}/dashboard${queryString({ storeId })}`),
