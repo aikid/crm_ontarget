@@ -128,8 +128,13 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(admin, /label="E-mail" type="email"/);
   assert.match(admin, /Enviar acesso/);
   assert.match(admin, /sendClientAccess/);
-  assert.match(admin, /Senha temporária/);
+  assert.match(admin, /link protegido/);
+  assert.doesNotMatch(admin, /Senha temporária/);
   assert.match(api, /\/api\/admin\/clients\/\$\{id\}\/access/);
+  assert.match(login, /Esqueci minha senha/);
+  assert.match(login, /Defina sua senha/);
+  assert.match(api, /\/api\/auth\/forgot-password/);
+  assert.match(api, /\/api\/auth\/reset-password/);
   assert.doesNotMatch(admin, /deleteClient|deleteStore|deleteCampaign/i);
   assert.match(leadImport, /modelo-importacao-leads\.csv/);
   assert.match(leadImport, /\.csv,\.xlsx/);

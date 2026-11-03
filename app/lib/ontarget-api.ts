@@ -291,6 +291,14 @@ export const onTargetApi = {
     method: "POST",
     body: JSON.stringify({ email, password }),
   }),
+  forgotPassword: (email: string) => request<{ message: string }>("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  }),
+  resetPassword: (token: string, password: string) => request<{ message: string }>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+  }),
   logout: async () => {
     try {
       await request<void>("/api/auth/logout", { method: "POST" });
@@ -335,7 +343,7 @@ export const onTargetApi = {
     clients: () => request<{ data: AdminClient[] }>("/api/admin/clients"),
     createClient: (payload: { name: string; email: string }) => request<AdminClient>("/api/admin/clients", { method: "POST", body: JSON.stringify(payload) }),
     updateClient: (id: string, payload: { name?: string; email?: string; active?: boolean }) => request<AdminClient>(`/api/admin/clients/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
-    sendClientAccess: (id: string) => request<{ email: string; temporaryPassword: string; userId: string }>(`/api/admin/clients/${id}/access`, { method: "POST" }),
+    sendClientAccess: (id: string) => request<{ email: string; emailSent: true; expiresInMinutes: number; userId: string }>(`/api/admin/clients/${id}/access`, { method: "POST" }),
     stores: () => request<{ data: AdminStore[] }>("/api/admin/stores"),
     createStore: (payload: { clientId: string; name: string; shortName: string }) => request<AdminStore>("/api/admin/stores", { method: "POST", body: JSON.stringify(payload) }),
     updateStore: (id: string, payload: { name?: string; shortName?: string; active?: boolean }) => request<AdminStore>(`/api/admin/stores/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),

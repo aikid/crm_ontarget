@@ -13,7 +13,7 @@ import LoadingOverlay from "./ui/LoadingOverlay";
 type Tab = "clients" | "stores" | "campaigns" | "users";
 type FormValues = Record<string, string>;
 type Editing = AdminClient | AdminStore | AdminCampaign | AdminUser | null;
-type ClientAccess = { email: string; temporaryPassword: string };
+type ClientAccess = { email: string; emailSent: true; expiresInMinutes: number };
 
 const tabLabels: Record<Tab, string> = {
   clients: "Clientes",
@@ -223,7 +223,7 @@ export default function AdminScreen() {
     try {
       const access = await onTargetApi.admin.sendClientAccess(client.id);
       setClientAccess(access);
-      setNotice("Acesso ao Portal do Cliente gerado com sucesso.");
+      setNotice("E-mail de acesso ao Portal do Cliente enviado com sucesso.");
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível gerar o acesso do cliente.");
@@ -299,11 +299,11 @@ export default function AdminScreen() {
       {clientAccess && (
         <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setClientAccess(null)}>
           <section className="admin-modal access-modal" role="dialog" aria-modal="true" aria-labelledby="client-access-title">
-            <header><div><span>ACESSO GERADO</span><h2 id="client-access-title">Portal do Cliente</h2></div><button type="button" onClick={() => setClientAccess(null)} aria-label="Fechar">×</button></header>
+            <header><div><span>ACESSO ENVIADO</span><h2 id="client-access-title">Portal do Cliente</h2></div><button type="button" onClick={() => setClientAccess(null)} aria-label="Fechar">×</button></header>
             <div className="client-access-content">
-              <p>Compartilhe estes dados com o cliente. A senha temporária é exibida somente agora.</p>
-              <dl><div><dt>E-mail</dt><dd>{clientAccess.email}</dd></div><div><dt>Senha temporária</dt><dd>{clientAccess.temporaryPassword}</dd></div></dl>
-              <footer><button type="button" onClick={() => setClientAccess(null)}>Fechar</button><button className="primary" type="button" onClick={() => void navigator.clipboard.writeText(`E-mail: ${clientAccess.email}\nSenha temporária: ${clientAccess.temporaryPassword}`)}>Copiar acesso</button></footer>
+              <p>Enviamos um link protegido para o cliente definir a própria senha. O link expira em {clientAccess.expiresInMinutes} minutos e só pode ser usado uma vez.</p>
+              <dl><div><dt>E-mail de destino</dt><dd>{clientAccess.email}</dd></div></dl>
+              <footer><button className="primary" type="button" onClick={() => setClientAccess(null)}>Fechar</button></footer>
             </div>
           </section>
         </div>
