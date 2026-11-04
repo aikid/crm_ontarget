@@ -116,6 +116,8 @@ export type ApiLead = {
   vehicle: string | null;
   origin: string;
   reason: string | null;
+  auditNotes: string | null;
+  sellerOption: "Venda direta" | "0km" | "Usado" | "Consórcio" | null;
   storeId: string;
   store: { id: string; name: string; shortName: string };
   campaign: { id: string; name: string };
@@ -320,6 +322,10 @@ export const onTargetApi = {
   campaignLeads: (campaignId: string, filters?: Record<string, QueryValue>) => request<{ data: ApiLead[]; pagination: { page: number; pageSize: number; total: number; pages: number } }>(`/api/campaigns/${campaignId}/leads${queryString(filters)}`),
   operationDashboard: (filters?: Record<string, QueryValue>) => request<OperationDashboard>(`/api/operations/dashboard${queryString(filters)}`),
   operationLeads: (filters?: Record<string, QueryValue>) => request<{ data: ApiLead[]; pagination: { page: number; pageSize: number; total: number; pages: number } }>(`/api/operations/leads${queryString(filters)}`),
+  updateLeadAuditFields: (leadId: string, payload: { auditNotes?: string | null; sellerOption?: ApiLead["sellerOption"] }) => request<ApiLead>(`/api/operations/leads/${leadId}/audit-fields`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }),
   callRecording: (callId: string) => requestBlob(`/api/telephony/asterisk/calls/${callId}/recording`),
   lead: (leadId: string) => request<ApiLead>(`/api/leads/${leadId}`),
   sdrCampaigns: () => request<{ data: SdrCampaign[] }>("/api/sdr/campaigns"),
@@ -361,7 +367,7 @@ export const onTargetApi = {
     importBatch: (id: string) => request<ImportBatch>(`/api/admin/imports/${id}`),
     importLeads: (payload: FormData) => request<ImportBatch>("/api/admin/imports", { method: "POST", body: payload }),
     googleSheetsImportConfig: () => request<GoogleSheetsImportConfig>("/api/admin/imports/google-sheets/config"),
-    importGoogleSheets: (payload: { clientId: string; storeId: string; campaignId: string; spreadsheetUrl: string; sheetName?: string }) => request<ImportBatch>("/api/admin/imports/google-sheets", {
+    importGoogleSheets: (payload: { clientId: string; campaignId: string; spreadsheetUrl: string; sheetName?: string }) => request<ImportBatch>("/api/admin/imports/google-sheets", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

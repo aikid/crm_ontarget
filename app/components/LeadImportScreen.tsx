@@ -5,7 +5,6 @@ import {
   onTargetApi,
   type AdminCampaign,
   type AdminClient,
-  type AdminStore,
   type GoogleSheetsImportConfig,
   type ImportBatch,
 } from "../lib/ontarget-api";
@@ -28,11 +27,9 @@ function sourceLabel(value: ImportBatch["fileType"]) {
 export default function LeadImportScreen() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [clients, setClients] = useState<AdminClient[]>([]);
-  const [stores, setStores] = useState<AdminStore[]>([]);
   const [campaigns, setCampaigns] = useState<AdminCampaign[]>([]);
   const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [clientId, setClientId] = useState("");
-  const [storeId, setStoreId] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [source, setSource] = useState<"file" | "google-sheets">("file");
@@ -49,22 +46,18 @@ export default function LeadImportScreen() {
     let cancelled = false;
     Promise.all([
       onTargetApi.admin.clients(),
-      onTargetApi.admin.stores(),
       onTargetApi.admin.campaigns(),
       onTargetApi.admin.imports(),
       onTargetApi.admin.googleSheetsImportConfig(),
-    ]).then(([clientRows, storeRows, campaignRows, batchRows, sheetsConfig]) => {
+    ]).then(([clientRows, campaignRows, batchRows, sheetsConfig]) => {
       if (cancelled) return;
       setClients(clientRows.data);
-      setStores(storeRows.data);
       setCampaigns(campaignRows.data);
       setBatches(batchRows.data);
       setGoogleSheetsConfig(sheetsConfig);
       const firstClient = clientRows.data.find((row) => row.active);
-      const firstStore = storeRows.data.find((row) => row.active && row.clientId === firstClient?.id);
-      const firstCampaign = campaignRows.data.find((row) => row.status === "ACTIVE" && row.storeId === firstStore?.id);
+      const firstCampaign = campaignRows.data.find((row) => row.status === "ACTIVE" && row.clientId === firstClient?.id);
       setClientId(firstClient?.id || "");
-      setStoreId(firstStore?.id || "");
       setCampaignId(firstCampaign?.id || "");
     }).catch((cause) => {
       if (!cancelled) setError(cause instanceof Error ? cause.message : "Não foi possível carregar as importações.");
@@ -72,20 +65,12 @@ export default function LeadImportScreen() {
     return () => { cancelled = true; };
   }, []);
 
-  const availableStores = useMemo(() => stores.filter((row) => row.active && row.clientId === clientId), [stores, clientId]);
-  const availableCampaigns = useMemo(() => campaigns.filter((row) => row.status === "ACTIVE" && row.clientId === clientId && row.storeId === storeId), [campaigns, clientId, storeId]);
+  const availableCampaigns = useMemo(() => campaigns.filter((row) => row.status === "ACTIVE" && row.clientId === clientId), [campaigns, clientId]);
 
   function selectClient(value: string) {
-    const nextStore = stores.find((row) => row.active && row.clientId === value);
-    const nextCampaign = campaigns.find((row) => row.status === "ACTIVE" && row.clientId === value && row.storeId === nextStore?.id);
+    const nextCampaign = campaigns.find((row) => row.status === "ACTIVE" && row.clientId === value);
     setClientId(value);
-    setStoreId(nextStore?.id || "");
     setCampaignId(nextCampaign?.id || "");
-  }
-
-  function selectStore(value: string) {
-    setStoreId(value);
-    setCampaignId(campaigns.find((row) => row.status === "ACTIVE" && row.storeId === value)?.id || "");
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -100,7 +85,6 @@ export default function LeadImportScreen() {
       if (source === "google-sheets") {
         batch = await onTargetApi.admin.importGoogleSheets({
           clientId,
-          storeId,
           campaignId,
           spreadsheetUrl: spreadsheetUrl.trim(),
           ...(sheetName.trim() ? { sheetName: sheetName.trim() } : {}),
@@ -108,7 +92,6 @@ export default function LeadImportScreen() {
       } else {
         const payload = new FormData();
         payload.set("clientId", clientId);
-        payload.set("storeId", storeId);
         payload.set("campaignId", campaignId);
         payload.set("file", file!);
         batch = await onTargetApi.admin.importLeads(payload);
@@ -151,10 +134,9 @@ export default function LeadImportScreen() {
 
       <div className="import-layout">
         <section className="import-card">
-          <div className="import-step"><span>1</span><div><strong>Destino dos leads</strong><small>A ação define o vendedor e o cliente responsáveis.</small></div></div>
+          <div className="import-step"><span>1</span><div><strong>Destino dos leads</strong><small>Selecione o cliente e a ação responsáveis.</small></div></div>
           <form onSubmit={submit}>
             <label><span>Cliente</span><select value={clientId} required onChange={(event) => selectClient(event.target.value)} disabled={loading}><option value="" disabled>Selecione</option>{clients.filter((row) => row.active).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-            <label><span>Vendedor</span><select value={storeId} required onChange={(event) => selectStore(event.target.value)} disabled={loading}><option value="" disabled>Selecione</option>{availableStores.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
             <label><span>Ação</span><select value={campaignId} required onChange={(event) => setCampaignId(event.target.value)} disabled={loading}><option value="" disabled>Selecione</option>{availableCampaigns.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
 
             <div className="import-step file-step"><span>2</span><div><strong>Origem dos leads</strong><small>Escolha arquivo local ou Google Sheets.</small></div></div>

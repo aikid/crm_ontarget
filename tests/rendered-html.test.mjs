@@ -111,6 +111,11 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(leadSearch, /Consulta de leads/);
   assert.match(leadSearch, /HISTÓRICO OPERACIONAL/);
   assert.match(leadSearch, /attempt-indicator/);
+  assert.match(leadSearch, /<th>Auditoria<\/th>/);
+  assert.match(leadSearch, /Obs\. auditoria/);
+  assert.match(leadSearch, /Opção vendedor/);
+  assert.match(leadSearch, /Venda direta.*0km.*Usado.*Consórcio/s);
+  assert.match(api, /\/api\/operations\/leads\/\$\{leadId\}\/audit-fields/);
   assert.match(leadSearch, /Gravações das ligações/);
   assert.match(leadSearch, /Ouvir gravação/);
   assert.match(leadSearch, /Baixar gravação/);
@@ -148,9 +153,9 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(leadImport, /modelo-importacao-leads\.csv/);
   assert.match(leadImport, /\.csv,\.xlsx/);
   assert.match(leadImport, /Google Sheets/);
-  assert.match(leadImport, /<span>Vendedor<\/span>/);
+  assert.doesNotMatch(leadImport, /<span>Vendedor<\/span>/);
   assert.match(leadImport, /<span>Ação<\/span>/);
-  assert.match(leadImport, /A ação define o vendedor e o cliente responsáveis/);
+  assert.match(leadImport, /Selecione o cliente e a ação responsáveis/);
   assert.doesNotMatch(leadImport, /<span>Loja<\/span>|<span>Campanha ativa<\/span>|<th>Campanha<\/th>/);
   assert.match(leadImport, /googleSheetsImportConfig/);
   assert.match(leadImport, /importGoogleSheets/);
