@@ -189,8 +189,15 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.doesNotMatch(sdr, /Campanha ativa|Loja de origem|lead\.action \|\| lead\.vehicle/);
   assert.match(sdr, /Preparando ligação…" : "Ligar"/);
   assert.doesNotMatch(sdr, /Ligar com Onvox|Asterisk \+ OverTele/);
+  assert.match(sdr, /id: "VOICEMAIL", label: "Caixa Postal"/);
+  assert.match(sdr, /id: "CALLBACK", label: "Retornar"/);
+  assert.match(sdr, /id: "ALREADY_BOUGHT", label: "Já comprou"/);
+  assert.match(sdr, /id: "NOT_QUALIFIED", label: "Sem Interesse"/);
+  assert.match(sdr, /id: "LIMBO", label: "Limbo"/);
+  assert.match(sdr, /id: "FUTURE_INTEREST", label: "Interesse Futuro"/);
+  assert.match(sdr, /id: "INVALID_NUMBER", label: "Número não existe"/);
   assert.match(sdr, /id: "DIRECTED", label: "Direcionado"/);
-  assert.match(sdr, /id: "NOT_QUALIFIED", label: "Sem interesse"/);
+  assert.match(sdr, /id: "SCHEDULED", label: "Agendado"/);
   assert.doesNotMatch(sdr, /label: "Recusou"|label: "Contato realizado"|label: "Qualificado"|label: "Não qualificado"/);
   assert.match(ringbackTone, /RING_CYCLE_MS = 5_000/);
   assert.match(ringbackTone, /425/);

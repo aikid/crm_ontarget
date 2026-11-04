@@ -14,14 +14,18 @@ import LoadingOverlay from "./ui/LoadingOverlay";
 const statusOptions = [
   ["all", "Todos os status"],
   ["PENDING", "Pendente"],
-  ["CALLBACK", "Retorno"],
+  ["CALLBACK", "Retornar"],
   ["CONTACTED", "Contato realizado"],
   ["QUALIFIED", "Qualificado"],
   ["DIRECTED", "Direcionado"],
+  ["SCHEDULED", "Agendado"],
   ["NOT_QUALIFIED", "Sem interesse"],
   ["REFUSED", "Recusou"],
+  ["ALREADY_BOUGHT", "Já comprou"],
+  ["LIMBO", "Limbo"],
+  ["FUTURE_INTEREST", "Interesse futuro"],
   ["EXHAUSTED", "Tentativas esgotadas"],
-  ["INVALID_NUMBER", "Número inválido"],
+  ["INVALID_NUMBER", "Número não existe"],
 ];
 
 const sellerOptions: NonNullable<ApiLead["sellerOption"]>[] = ["Venda direta", "0km", "Usado", "Consórcio"];

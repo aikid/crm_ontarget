@@ -13,16 +13,20 @@ import {
   type SdrQueueSummary,
 } from "../lib/ontarget-api";
 
-type ResultType = "NO_ANSWER" | "INVALID_NUMBER" | "DIRECTED" | "NOT_QUALIFIED" | "CALLBACK";
+type ResultType = "VOICEMAIL" | "CALLBACK" | "ALREADY_BOUGHT" | "NOT_QUALIFIED" | "LIMBO" | "FUTURE_INTEREST" | "INVALID_NUMBER" | "DIRECTED" | "SCHEDULED";
 type CallPhase = "idle" | "calling" | "active" | "ended";
 type SipRegistration = "connecting" | "ready" | "error";
 
 const resultOptions: Array<{ id: ResultType; label: string; shortcut: string; detail: string }> = [
-  { id: "NO_ANSWER", label: "Não atendeu", shortcut: "1", detail: "Registrar nova tentativa" },
-  { id: "INVALID_NUMBER", label: "Número inválido", shortcut: "2", detail: "Retirar da fila" },
-  { id: "DIRECTED", label: "Direcionado", shortcut: "3", detail: "Lead qualificado e direcionado" },
-  { id: "NOT_QUALIFIED", label: "Sem interesse", shortcut: "4", detail: "Lead não deseja prosseguir" },
-  { id: "CALLBACK", label: "Retorno solicitado", shortcut: "5", detail: "Agendar retorno simples" },
+  { id: "VOICEMAIL", label: "Caixa Postal", shortcut: "1", detail: "Iniciar nova tentativa" },
+  { id: "CALLBACK", label: "Retornar", shortcut: "2", detail: "Retornar no horário agendado" },
+  { id: "ALREADY_BOUGHT", label: "Já comprou", shortcut: "3", detail: "Encerrar sem nova ação" },
+  { id: "NOT_QUALIFIED", label: "Sem Interesse", shortcut: "4", detail: "Encerrar sem nova ação" },
+  { id: "LIMBO", label: "Limbo", shortcut: "5", detail: "Encerrar sem nova ação" },
+  { id: "FUTURE_INTEREST", label: "Interesse Futuro", shortcut: "6", detail: "Encerrar sem nova ação" },
+  { id: "INVALID_NUMBER", label: "Número não existe", shortcut: "7", detail: "Encerrar sem nova ação" },
+  { id: "DIRECTED", label: "Direcionado", shortcut: "8", detail: "Sucesso — será auditado" },
+  { id: "SCHEDULED", label: "Agendado", shortcut: "9", detail: "Sucesso — será auditado" },
 ];
 
 function formatTimer(totalSeconds: number) {
@@ -368,7 +372,7 @@ export default function SdrScreen() {
         ...(selectedResult === "CALLBACK" ? { callback: { scheduledAt: new Date(callbackAt).toISOString() } } : {}),
         ...(callId ? { callId, durationSec: callSeconds } : {}),
       });
-      setToast(selectedResult === "CALLBACK" ? "Retorno salvo fora da fila automática." : "Resultado salvo com sucesso.");
+      setToast(selectedResult === "CALLBACK" ? "Retorno salvo para o horário agendado." : "Resultado salvo com sucesso.");
       setLead(null);
       setCallPhase("idle");
       setCallSeconds(0);
@@ -452,7 +456,7 @@ export default function SdrScreen() {
             </div>
           ) : (
             <>
-              {lead.callback && <div className="callback-alert"><span className="callback-icon">↻</span><div><strong>Retorno solicitado</strong><p>{lead.callback.notes || "Contato retomado no horário combinado."}</p></div><span className="callback-priority">Retorno</span></div>}
+              {lead.callback && <div className="callback-alert"><span className="callback-icon">↻</span><div><strong>Retornar</strong><p>{lead.callback.notes || "Contato retomado no horário combinado."}</p></div><span className="callback-priority">Retorno</span></div>}
 
               <article className="lead-card">
                 <div className="lead-card-heading">
@@ -482,8 +486,8 @@ export default function SdrScreen() {
                 <div className="result-options">{resultOptions.map((option) => <button type="button" key={option.id} className={selectedResult === option.id ? "selected" : ""} onClick={() => setSelectedResult(option.id)}><span className="result-radio">{selectedResult === option.id ? "✓" : ""}</span><div><strong>{option.label}</strong><small>{option.detail}</small></div><kbd>{option.shortcut}</kbd></button>)}</div>
                 {selectedResult && <div className="conditional-form">
                   {selectedResult === "CALLBACK" && <div className="form-grid callback-form"><label className="form-field"><span>Data e horário do retorno <b>*</b></span><input type="datetime-local" value={callbackAt} min={localDateTimeInput(new Date())} onChange={(event) => setCallbackAt(event.target.value)} /></label></div>}
-                  {selectedResult === "NO_ANSWER" && <div className="no-answer-note"><div><span>TENTATIVA ATUAL</span><strong>{attemptNumber} de 3</strong></div><div><strong>{attemptNumber === 3 ? "Última tentativa" : "Lead voltará à fila"}</strong><p>{attemptNumber === 3 ? "Ao salvar, o limite será atingido e o lead será encerrado." : "O lead permanece elegível para uma nova tentativa."}</p></div></div>}
-                  {selectedResult === "INVALID_NUMBER" && <div className="invalid-note"><span>!</span><div><strong>O telefone será marcado como inválido.</strong><p>O lead não retornará à fila operacional.</p></div></div>}
+                  {selectedResult === "VOICEMAIL" && <div className="no-answer-note"><div><span>TENTATIVA ATUAL</span><strong>{attemptNumber} de 3</strong></div><div><strong>{attemptNumber === 3 ? "Última tentativa" : "Lead voltará à fila"}</strong><p>{attemptNumber === 3 ? "Ao salvar, o limite será atingido e o lead será encerrado." : "Uma nova tentativa poderá ser iniciada pela fila."}</p></div></div>}
+                  {selectedResult === "INVALID_NUMBER" && <div className="invalid-note"><span>!</span><div><strong>O número será marcado como inexistente.</strong><p>O lead será encerrado e não retornará à fila operacional.</p></div></div>}
                   <div className="form-grid"><label className="form-field full"><span>Veículo de interesse</span><input type="text" value={vehicleInterest} maxLength={120} onChange={(event) => setVehicleInterest(event.target.value)} placeholder="Informe o veículo mencionado pelo cliente" /></label></div>
                   <div className="form-grid"><label className="form-field full"><span>Observações</span><textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} placeholder="Registre apenas informações úteis para o histórico do lead." /></label></div>
                   <div className="form-footer"><span>Registre o desfecho do contato</span><button className="primary-button save-button" type="button" disabled={saving || (selectedResult === "CALLBACK" && !callbackAt)} onClick={() => void saveOutcome()}>{saving ? "Salvando…" : "Salvar e próximo lead →"}</button></div>
