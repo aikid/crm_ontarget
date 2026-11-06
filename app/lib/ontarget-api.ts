@@ -116,6 +116,7 @@ export type ApiLead = {
   vehicle: string | null;
   origin: string;
   reason: string | null;
+  auditSummary: string | null;
   auditNotes: string | null;
   sellerOption: "Venda direta" | "0km" | "Usado" | "Consórcio" | null;
   storeId: string;
@@ -138,7 +139,7 @@ export type ApiLead = {
   callback: null | { scheduledAt: string; notes: string | null };
   appointment: null | { date: string; period: string; seller: string | null; notes: string | null };
   qualification: null | { type: string; date: string; notes: string | null };
-  audit: { status: string; confidence?: number | null; evidence?: string | null; auditedAt?: string | null };
+  audit: { status: string; confidence?: "ALTA" | "MÉDIA" | "BAIXA" | string | null; evidence?: string | null; auditedAt?: string | null };
   recordingAvailable: boolean;
   recordings: Array<{
     callId: string;

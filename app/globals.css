@@ -1635,6 +1635,9 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .lead-detail-button:hover { color: #fff; background: var(--primary); transform: translateX(2px); }
 .lead-detail-button span { font-size: 11px; }
 .lead-audit-editor { position: relative; }
+.lead-ai-audit-summary { display: grid; gap: 7px; margin-bottom: 14px; padding: 12px 14px; border: 1px solid #e5e8f0; border-radius: 10px; background: #f8f9fc; }
+.lead-ai-audit-summary span { color: #777c87; font-size: 8px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+.lead-ai-audit-summary p { margin: 0; color: #353d4d; font-size: 9px; line-height: 1.55; }
 .lead-audit-form { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(170px, .8fr); gap: 14px; }
 .lead-audit-form label { display: flex; flex-direction: column; gap: 7px; }
 .lead-audit-form label > span { color: #777c87; font-size: 8px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }

@@ -57,6 +57,7 @@ function LeadAuditEditor({ lead, onSaved }: { lead: ApiLead; onSaved: (lead: Api
 
   return <section className="drawer-section lead-audit-editor">
     <div className="drawer-section-heading"><span className="drawer-section-icon">AU</span><div><h3>Complemento da auditoria</h3><p>Campos editáveis pelo gestor</p></div></div>
+    <div className="lead-ai-audit-summary"><span>Resumo gerado pela IA</span><p>{lead.auditSummary || "Ainda não informado pela auditoria."}</p></div>
     <div className="lead-audit-form">
       <label><span>Obs. auditoria</span><textarea value={auditNotes} onChange={(event) => setAuditNotes(event.target.value)} maxLength={10_000} placeholder="Registre observações sobre a auditoria" /></label>
       <label><span>Opção vendedor</span><select value={sellerOption || ""} onChange={(event) => setSellerOption((event.target.value || null) as ApiLead["sellerOption"])}><option value="">Não informada</option>{sellerOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>

@@ -83,10 +83,10 @@ export default function LeadDrawer({ lead, campaign, onClose }: LeadDrawerProps)
             ) : (
               <>
                 <div className="drawer-audit-result">
-                  <div><span className="audit-check">✓</span><p><strong>{lead.audit.status === "Confirmado" ? "Confirmado pela IA" : "Em revisão"}</strong><small>{lead.audit.status === "Confirmado" ? "Critérios da campanha atendidos" : "Validação humana recomendada"}</small></p></div>
-                  <div className="confidence-score"><span>Confiança</span><strong>{lead.audit.confidence}%</strong></div>
+                  <div><span className="audit-check">✓</span><p><strong>{lead.audit.status}</strong><small>Classificação gerada pela auditoria</small></p></div>
+                  <div className="confidence-score"><span>Confiança</span><strong>{lead.audit.confidence || "—"}</strong></div>
                 </div>
-                <div className="audit-confidence-track"><span style={{ width: `${lead.audit.confidence}%` }} /></div>
+                {lead.auditSummary && <div className="audit-evidence"><span>RESUMO DA IA</span><p>{lead.auditSummary}</p></div>}
                 <div className="audit-evidence"><span>EVIDÊNCIA DA LIGAÇÃO</span><p>“{lead.audit.evidence}”</p></div>
                 <div className="audit-date">Data da auditoria: <strong>{lead.audit.auditedAt}</strong></div>
               </>

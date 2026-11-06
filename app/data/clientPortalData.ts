@@ -30,8 +30,8 @@ export type CallAttempt = {
 };
 
 export type Audit = {
-  status: "Confirmado" | "Revisão" | "Não auditado";
-  confidence?: number;
+  status: string;
+  confidence?: "ALTA" | "MÉDIA" | "BAIXA" | number;
   evidence?: string;
   auditedAt?: string;
 };
@@ -62,6 +62,7 @@ export type PortalLead = {
   history: CallAttempt[];
   appointment?: Appointment;
   qualification?: Qualification;
+  auditSummary?: string;
   audit: Audit;
   recordingAvailable: boolean;
 };

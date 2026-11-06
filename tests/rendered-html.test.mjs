@@ -114,6 +114,7 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(leadSearch, /<th>Auditoria<\/th>/);
   assert.match(leadSearch, /Obs\. auditoria/);
   assert.match(leadSearch, /Opção vendedor/);
+  assert.match(leadSearch, /Resumo gerado pela IA/);
   assert.match(leadSearch, /Venda direta.*0km.*Usado.*Consórcio/s);
   assert.match(api, /\/api\/operations\/leads\/\$\{leadId\}\/audit-fields/);
   assert.match(leadSearch, /Gravações das ligações/);
