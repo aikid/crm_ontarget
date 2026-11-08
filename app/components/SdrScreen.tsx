@@ -64,6 +64,10 @@ function publicCallError(cause: unknown, fallback: string) {
   return /Asterisk|OverTele|Onvox|3CX|SIP|WebSocket|ARI/i.test(cause.message) ? fallback : cause.message;
 }
 
+function usesContactDetails(result: ResultType | null) {
+  return Boolean(result && !["VOICEMAIL", "CALLBACK"].includes(result));
+}
+
 export default function SdrScreen() {
   const { user } = useAuth();
   const userId = user?.id;
@@ -93,6 +97,7 @@ export default function SdrScreen() {
   const callIdRef = useRef<string | null>(null);
   const statusTimerRef = useRef<number | null>(null);
   const claimingLeadRef = useRef(false);
+  const skipAutomaticClaimRef = useRef("");
 
   const campaign = useMemo(() => campaigns.find((item) => item.id === campaignId) || null, [campaignId, campaigns]);
   const attemptNumber = lead ? Math.min(3, lead.attempts + 1) : 1;
@@ -200,14 +205,17 @@ export default function SdrScreen() {
 
   useEffect(() => {
     if (!campaignId || !userId || userRole !== "SDR") return;
+    const skipClaim = skipAutomaticClaimRef.current === campaignId;
+    if (skipClaim) skipAutomaticClaimRef.current = "";
     const timer = window.setTimeout(() => {
-      void Promise.all([refreshSideData(campaignId), claimNext(campaignId)]).catch((cause) => {
+      const queueTask = skipClaim ? refreshQueueSummary(campaignId) : claimNext(campaignId);
+      void Promise.all([refreshSideData(campaignId), queueTask]).catch((cause) => {
         setError(cause instanceof Error ? cause.message : "Não foi possível iniciar a operação.");
         setLoading(false);
       });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [campaignId, claimNext, refreshSideData, userId, userRole]);
+  }, [campaignId, claimNext, refreshQueueSummary, refreshSideData, userId, userRole]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock((value) => value + 1), 1_000);
@@ -256,12 +264,30 @@ export default function SdrScreen() {
   }, [callPhase]);
 
   async function changeCampaign(nextCampaignId: string) {
+    if (!nextCampaignId || nextCampaignId === campaignId) return;
     if (["calling", "active"].includes(callPhase)) await endCall();
-    if (lead) {
-      try { await onTargetApi.releaseLead(lead.id); } catch { /* a reserva pode já ter expirado */ }
+    setLoading(true);
+    setError("");
+    setQueueEmpty(false);
+    try {
+      const switched = await onTargetApi.switchCampaignLead(nextCampaignId);
+      skipAutomaticClaimRef.current = nextCampaignId;
+      setLead(switched.lead);
+      setCampaignId(nextCampaignId);
+      setQueueEmpty(!switched.lead);
+      setCallPhase("idle");
+      setCallSeconds(0);
+      setCallId(null);
+      callIdRef.current = null;
+      setSelectedResult(null);
+      setVehicleInterest("");
+      setNotes("");
+      setCallbackAt(localDateTimeInput());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível trocar de ação.");
+    } finally {
+      setLoading(false);
     }
-    setLead(null);
-    setCampaignId(nextCampaignId);
   }
 
   async function startCall() {
@@ -362,13 +388,14 @@ export default function SdrScreen() {
 
   async function saveOutcome() {
     if (!lead || !selectedResult || saving) return;
+    const includeContactDetails = usesContactDetails(selectedResult);
     setSaving(true);
     setError("");
     try {
       await onTargetApi.saveOutcome(lead.id, {
         outcome: selectedResult,
-        vehicle: vehicleInterest.trim() || undefined,
-        notes: notes || undefined,
+        vehicle: includeContactDetails ? vehicleInterest.trim() || undefined : undefined,
+        notes: includeContactDetails ? notes || undefined : undefined,
         ...(selectedResult === "CALLBACK" ? { callback: { scheduledAt: new Date(callbackAt).toISOString() } } : {}),
         ...(callId ? { callId, durationSec: callSeconds } : {}),
       });
@@ -424,6 +451,7 @@ export default function SdrScreen() {
             <select className="sdr-campaign-select" value={campaignId} onChange={(event) => void changeCampaign(event.target.value)} disabled={loading}>
               {campaigns.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
             </select>
+            <small className="campaign-validity">Vigência: {campaign ? `${campaign.startDate} — ${campaign.endDate}` : "—"}</small>
           </div>
           <i />
           <div><span>Cliente</span><strong>{campaign?.client.name || "—"}</strong></div>
@@ -483,13 +511,15 @@ export default function SdrScreen() {
 
               {callPhase !== "idle" && <article className="result-card">
                 <div className="result-heading"><div><span className="section-kicker">REGISTRO DA TENTATIVA</span><h2>Qual foi o resultado do contato?</h2><p>O registro libera o lead e carrega o próximo item da fila.</p></div><span className="required-note">Obrigatório</span></div>
-                <div className="result-options">{resultOptions.map((option) => <button type="button" key={option.id} className={selectedResult === option.id ? "selected" : ""} onClick={() => setSelectedResult(option.id)}><span className="result-radio">{selectedResult === option.id ? "✓" : ""}</span><div><strong>{option.label}</strong><small>{option.detail}</small></div><kbd>{option.shortcut}</kbd></button>)}</div>
+                <div className="result-options">{resultOptions.map((option) => <button type="button" key={option.id} className={selectedResult === option.id ? "selected" : ""} onClick={() => { setSelectedResult(option.id); if (!usesContactDetails(option.id)) { setVehicleInterest(""); setNotes(""); } }}><span className="result-radio">{selectedResult === option.id ? "✓" : ""}</span><div><strong>{option.label}</strong><small>{option.detail}</small></div><kbd>{option.shortcut}</kbd></button>)}</div>
                 {selectedResult && <div className="conditional-form">
                   {selectedResult === "CALLBACK" && <div className="form-grid callback-form"><label className="form-field"><span>Data e horário do retorno <b>*</b></span><input type="datetime-local" value={callbackAt} min={localDateTimeInput(new Date())} onChange={(event) => setCallbackAt(event.target.value)} /></label></div>}
                   {selectedResult === "VOICEMAIL" && <div className="no-answer-note"><div><span>TENTATIVA ATUAL</span><strong>{attemptNumber} de 3</strong></div><div><strong>{attemptNumber === 3 ? "Última tentativa" : "Lead voltará à fila"}</strong><p>{attemptNumber === 3 ? "Ao salvar, o limite será atingido e o lead será encerrado." : "Uma nova tentativa poderá ser iniciada pela fila."}</p></div></div>}
                   {selectedResult === "INVALID_NUMBER" && <div className="invalid-note"><span>!</span><div><strong>O número será marcado como inexistente.</strong><p>O lead será encerrado e não retornará à fila operacional.</p></div></div>}
-                  <div className="form-grid"><label className="form-field full"><span>Veículo de interesse</span><input type="text" value={vehicleInterest} maxLength={120} onChange={(event) => setVehicleInterest(event.target.value)} placeholder="Informe o veículo mencionado pelo cliente" /></label></div>
-                  <div className="form-grid"><label className="form-field full"><span>Observações</span><textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} placeholder="Registre apenas informações úteis para o histórico do lead." /></label></div>
+                  {usesContactDetails(selectedResult) && <>
+                    <div className="form-grid"><label className="form-field full"><span>Veículo de interesse</span><input type="text" value={vehicleInterest} maxLength={120} onChange={(event) => setVehicleInterest(event.target.value)} placeholder="Informe o veículo mencionado pelo cliente" /></label></div>
+                    <div className="form-grid"><label className="form-field full"><span>Observações</span><textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} placeholder="Registre apenas informações úteis para o histórico do lead." /></label></div>
+                  </>}
                   <div className="form-footer"><span>Registre o desfecho do contato</span><button className="primary-button save-button" type="button" disabled={saving || (selectedResult === "CALLBACK" && !callbackAt)} onClick={() => void saveOutcome()}>{saving ? "Salvando…" : "Salvar e próximo lead →"}</button></div>
                 </div>}
               </article>}

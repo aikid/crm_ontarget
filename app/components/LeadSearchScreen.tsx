@@ -105,7 +105,16 @@ function ManagerRecording({ recording }: { recording: ApiLead["recordings"][numb
   </div>;
 }
 
-export default function LeadSearchScreen() {
+type LeadSearchScreenProps = {
+  navigationOpen?: boolean;
+  onToggleNavigation?: () => void;
+};
+
+function leadSdrName(lead: ApiLead) {
+  return lead.reservation?.sdr.name || lead.history.at(-1)?.sdr?.name || "Não atribuído";
+}
+
+export default function LeadSearchScreen({ navigationOpen = false, onToggleNavigation }: LeadSearchScreenProps) {
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [stores, setStores] = useState<AdminStore[]>([]);
   const [campaigns, setCampaigns] = useState<AdminCampaign[]>([]);
@@ -180,7 +189,7 @@ export default function LeadSearchScreen() {
 
   return <div className="screen lead-search-screen">
     <LoadingOverlay show={loading} title="Atualizando consulta" message="Aplicando os filtros e buscando os leads." />
-    <header className="admin-header"><div><span>OPERAÇÃO</span><h1>Consulta de leads</h1><p>Pesquise cadastros e consulte todo o histórico operacional.</p></div><div className="lead-total"><strong>{pagination.total}</strong><span>leads encontrados</span></div></header>
+    <header className="admin-header lead-search-header"><div><button className="lead-navigation-toggle" type="button" aria-expanded={navigationOpen} onClick={onToggleNavigation}>{navigationOpen ? "Ocultar menu" : "Mostrar menu"}</button><span>OPERAÇÃO</span><h1>Consulta de leads</h1><p>Pesquise cadastros e consulte todo o histórico operacional.</p></div><div className="lead-total"><strong>{pagination.total}</strong><span>leads encontrados</span></div></header>
 
     <section className="lead-search-filters">
       <label className="lead-search-box"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Buscar por nome, telefone, veículo ou origem" aria-label="Buscar leads" /></label>
@@ -193,7 +202,7 @@ export default function LeadSearchScreen() {
 
     {error && <div className="admin-message error">{error}</div>}
     <section className="admin-table-card lead-results-card">
-      <div className="admin-table-wrap"><table><thead><tr><th>Lead</th><th>Cliente / loja</th><th>Campanha</th><th>Status</th><th>Auditoria</th><th>Tentativas</th><th>Último contato</th><th /></tr></thead><tbody>{leads.map((lead) => <tr key={lead.id}><td><div className="table-identity"><span className="table-row-avatar red">{lead.initials}</span><div><strong>{lead.name}</strong><small>{lead.phone} • {lead.action || lead.vehicle || "Sem ação informada"}</small></div></div></td><td><strong>{clientName(lead.clientId)}</strong><small>{lead.store.shortName}</small></td><td><strong>{lead.campaign.name}</strong><small>{lead.origin || "Origem não informada"}</small></td><td><span className={`lead-status-pill status-${lead.statusCode.toLowerCase()}`}><i />{lead.status}</span></td><td><span className={`audit-status-pill ${lead.audit.status === "Não auditado" ? "pending" : "audited"}`}><i />{lead.audit.status}</span></td><td><span className="attempt-indicator"><b>{lead.attempts} de 3</b><span>{[1, 2, 3].map((attempt) => <i className={attempt <= lead.attempts ? "filled" : ""} key={attempt} />)}</span></span></td><td>{lead.lastContact}</td><td><button className="lead-detail-button" type="button" onClick={() => setSelectedLead(lead)}>Ver histórico <span>→</span></button></td></tr>)}</tbody></table></div>
+      <div className="admin-table-wrap"><table><thead><tr><th>Lead</th><th>Cliente / loja</th><th>Campanha</th><th>Status</th><th>SDR</th><th>Auditoria</th><th>Tentativas</th><th>Último contato</th><th /></tr></thead><tbody>{leads.map((lead) => <tr key={lead.id}><td><div className="table-identity"><span className="table-row-avatar red">{lead.initials}</span><div><strong>{lead.name}</strong><small>{lead.phone} • {lead.action || lead.vehicle || "Sem ação informada"}</small></div></div></td><td><strong>{clientName(lead.clientId)}</strong><small>{lead.store.shortName}</small></td><td><strong>{lead.campaign.name}</strong><small>{lead.origin || "Origem não informada"}</small></td><td><span className={`lead-status-pill status-${lead.statusCode.toLowerCase()}`}><i />{lead.status}</span></td><td><span className="lead-sdr-name">{leadSdrName(lead)}</span></td><td><span className={`audit-status-pill ${lead.audit.status === "Não auditado" ? "pending" : "audited"}`}><i />{lead.audit.status}</span></td><td><span className="attempt-indicator"><b>{lead.attempts} de 3</b><span>{[1, 2, 3].map((attempt) => <i className={attempt <= lead.attempts ? "filled" : ""} key={attempt} />)}</span></span></td><td>{lead.lastContact}</td><td><button className="lead-detail-button" type="button" onClick={() => setSelectedLead(lead)}>Ver histórico <span>→</span></button></td></tr>)}</tbody></table></div>
       {!loading && leads.length === 0 && <div className="admin-empty">Nenhum lead encontrado com os filtros informados.</div>}
       <footer className="lead-pagination"><span>Página {pagination.page} de {Math.max(1, pagination.pages)}</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>← Anterior</button><button type="button" disabled={page >= pagination.pages} onClick={() => setPage((value) => value + 1)}>Próxima →</button></div></footer>
     </section>

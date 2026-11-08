@@ -15,6 +15,7 @@ export type Screen = "dashboard" | "sdr" | "admin" | "imports" | "leads";
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("dashboard");
+  const [leadNavigationOpen, setLeadNavigationOpen] = useState(false);
   const { user, loading, loggingOut, logout } = useAuth();
 
   if (loading) return <main className="auth-page app-boot-screen"><LoadingOverlay show title="Validando seu acesso" message="Conectando ao ambiente seguro da SysOn." /></main>;
@@ -23,7 +24,7 @@ export default function Home() {
   const activeScreen: Screen = user.role === "SDR" ? "sdr" : screen;
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell screen-${activeScreen} ${leadNavigationOpen ? "navigation-open" : ""}`}>
       <Sidebar activeScreen={activeScreen} onNavigate={setScreen} user={user} onLogout={() => void logout()} loggingOut={loggingOut} />
       <section className="app-content">
         {activeScreen === "dashboard" ? (
@@ -33,7 +34,7 @@ export default function Home() {
         ) : activeScreen === "admin" ? (
           <AdminScreen />
         ) : activeScreen === "leads" ? (
-          <LeadSearchScreen />
+          <LeadSearchScreen navigationOpen={leadNavigationOpen} onToggleNavigation={() => setLeadNavigationOpen((current) => !current)} />
         ) : (
           <LeadImportScreen />
         )}

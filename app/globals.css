@@ -921,6 +921,13 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
   font-size: 11px;
   font-weight: 700;
 }
+.campaign-validity {
+  color: #7d8593;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
 .sdr-operation-error {
   display: flex;
   min-height: 42px;
@@ -1612,7 +1619,9 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .admin-actions .success-action:hover { border-color: #bfe4d1; color: #207456; background: #effaf5; }
 
 .lead-results-card { overflow: hidden; }
-.lead-results-card table { min-width: 1200px; }
+.lead-results-card .admin-table-wrap { max-height: max(340px, calc(100vh - 325px)); overflow: auto; overflow-x: scroll; scrollbar-gutter: stable; }
+.lead-results-card table { min-width: 1360px; }
+.lead-results-card thead th { position: sticky; top: 0; z-index: 3; background: #fff; box-shadow: 0 1px 0 #ececef; }
 .lead-results-card th:first-child { padding-left: 20px; }
 .lead-results-card td { height: 72px; padding-block: 10px; }
 .lead-results-card td:first-child { min-width: 260px; }
@@ -1626,6 +1635,8 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .audit-status-pill { display: inline-flex; min-height: 25px; max-width: 150px; padding: 0 9px; align-items: center; gap: 7px; overflow: hidden; border: 1px solid #e3e3e7; border-radius: 20px; color: #6d717b; background: #f6f6f7; font-size: 8px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .audit-status-pill i { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: currentColor; }
 .audit-status-pill.audited { border-color: #d7e9df; color: #267054; background: #eff9f4; }
+.lead-sdr-name { display: block; min-width: 115px; color: #3f444e; font-size: 9px; font-weight: 700; white-space: nowrap; }
+.lead-navigation-toggle { display: none; min-height: 32px; margin: 0 0 10px; padding: 0 11px; border: 1px solid #e1e2e7; border-radius: 9px; color: #555b67; background: #fff; font-size: 9px; font-weight: 750; cursor: pointer; }
 .attempt-indicator { display: inline-flex; flex-direction: column; gap: 6px; }
 .attempt-indicator b { color: #565b65; font-size: 9px; font-weight: 700; }
 .attempt-indicator > span { display: flex; gap: 3px; }
@@ -1648,6 +1659,17 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .lead-audit-editor .admin-message { margin: 12px 0 0; }
 .lead-audit-save { display: flex; min-height: 38px; margin: 14px 0 0 auto; padding: 0 15px; align-items: center; border: 0; border-radius: 9px; color: #fff; background: var(--primary); font-size: 9px; font-weight: 750; cursor: pointer; }
 .lead-audit-save:disabled { cursor: wait; opacity: .65; }
+
+@media (max-width: 1500px) {
+  .app-shell.screen-leads:not(.navigation-open) .sidebar { display: none; }
+  .app-shell.screen-leads:not(.navigation-open) .app-content { margin-left: 0; }
+  .lead-navigation-toggle { display: inline-flex; align-items: center; }
+}
+
+@media (max-width: 760px) {
+  .lead-results-card .admin-table-wrap { max-height: 58vh; }
+}
+
 .lead-pagination { min-height: 57px; padding: 10px 18px; background: #fcfcfd; }
 .lead-pagination button { min-height: 33px; border-radius: 9px; }
 .lead-pagination button:not(:disabled):hover { border-color: #f0b7bb; color: var(--primary); background: #fff5f5; }
