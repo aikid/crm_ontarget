@@ -117,7 +117,10 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(leadSearch, /Resumo gerado pela IA/);
   assert.match(leadSearch, /<th>SDR<\/th>/);
   assert.match(leadSearch, /leadSdrName/);
-  assert.match(leadSearch, /Mostrar menu/);
+  assert.doesNotMatch(leadSearch, /Mostrar menu|Ocultar menu/);
+  assert.match(sidebar, /sidebar-collapse-toggle/);
+  assert.match(sidebar, /Abrir menu lateral/);
+  assert.match(sidebar, /Recolher menu lateral/);
   assert.match(leadSearch, /Venda direta.*0km.*Usado.*Consórcio/s);
   assert.match(api, /\/api\/operations\/leads\/\$\{leadId\}\/audit-fields/);
   assert.match(leadSearch, /Gravações das ligações/);

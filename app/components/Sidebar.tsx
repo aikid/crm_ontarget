@@ -8,6 +8,9 @@ type SidebarProps = {
   user: SessionUser;
   onLogout: () => void;
   loggingOut: boolean;
+  collapsible?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
 };
 
 const navItems = [
@@ -31,14 +34,16 @@ function NavIcon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-export default function Sidebar({ activeScreen, onNavigate, user, onLogout, loggingOut }: SidebarProps) {
+export default function Sidebar({ activeScreen, onNavigate, user, onLogout, loggingOut, collapsible = false, expanded = true, onToggle }: SidebarProps) {
   const { openProfile } = useAuth();
   const visibleItems = user.role === "SDR"
     ? navItems.filter((item) => item.id === "sdr")
     : navItems.filter((item) => !item.sdrOnly);
 
   return (
-    <aside className="sidebar">
+    <>
+      {collapsible && <button className={`sidebar-collapse-toggle ${expanded ? "expanded" : ""}`} type="button" aria-controls="main-sidebar" aria-expanded={expanded} aria-label={expanded ? "Recolher menu lateral" : "Abrir menu lateral"} title={expanded ? "Recolher menu" : "Abrir menu"} onClick={onToggle}><span /><span /><span /></button>}
+    <aside className="sidebar" id="main-sidebar">
       <div className="brand">
         <span className="brand-mark" aria-hidden="true"><i /></span>
         <div>
@@ -90,5 +95,6 @@ export default function Sidebar({ activeScreen, onNavigate, user, onLogout, logg
         </div>
       </div>
     </aside>
+    </>
   );
 }

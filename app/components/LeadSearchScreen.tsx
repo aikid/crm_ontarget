@@ -105,16 +105,11 @@ function ManagerRecording({ recording }: { recording: ApiLead["recordings"][numb
   </div>;
 }
 
-type LeadSearchScreenProps = {
-  navigationOpen?: boolean;
-  onToggleNavigation?: () => void;
-};
-
 function leadSdrName(lead: ApiLead) {
   return lead.reservation?.sdr.name || lead.history.at(-1)?.sdr?.name || "Não atribuído";
 }
 
-export default function LeadSearchScreen({ navigationOpen = false, onToggleNavigation }: LeadSearchScreenProps) {
+export default function LeadSearchScreen() {
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [stores, setStores] = useState<AdminStore[]>([]);
   const [campaigns, setCampaigns] = useState<AdminCampaign[]>([]);
@@ -189,7 +184,7 @@ export default function LeadSearchScreen({ navigationOpen = false, onToggleNavig
 
   return <div className="screen lead-search-screen">
     <LoadingOverlay show={loading} title="Atualizando consulta" message="Aplicando os filtros e buscando os leads." />
-    <header className="admin-header lead-search-header"><div><button className="lead-navigation-toggle" type="button" aria-expanded={navigationOpen} onClick={onToggleNavigation}>{navigationOpen ? "Ocultar menu" : "Mostrar menu"}</button><span>OPERAÇÃO</span><h1>Consulta de leads</h1><p>Pesquise cadastros e consulte todo o histórico operacional.</p></div><div className="lead-total"><strong>{pagination.total}</strong><span>leads encontrados</span></div></header>
+    <header className="admin-header lead-search-header"><div><span>OPERAÇÃO</span><h1>Consulta de leads</h1><p>Pesquise cadastros e consulte todo o histórico operacional.</p></div><div className="lead-total"><strong>{pagination.total}</strong><span>leads encontrados</span></div></header>
 
     <section className="lead-search-filters">
       <label className="lead-search-box"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Buscar por nome, telefone, veículo ou origem" aria-label="Buscar leads" /></label>

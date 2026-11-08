@@ -25,7 +25,7 @@ export default function Home() {
 
   return (
     <main className={`app-shell screen-${activeScreen} ${leadNavigationOpen ? "navigation-open" : ""}`}>
-      <Sidebar activeScreen={activeScreen} onNavigate={setScreen} user={user} onLogout={() => void logout()} loggingOut={loggingOut} />
+      <Sidebar activeScreen={activeScreen} onNavigate={setScreen} user={user} onLogout={() => void logout()} loggingOut={loggingOut} collapsible={activeScreen === "leads"} expanded={leadNavigationOpen} onToggle={() => setLeadNavigationOpen((current) => !current)} />
       <section className="app-content">
         {activeScreen === "dashboard" ? (
           <DashboardScreen canOpenSdr={user.role === "SDR"} onOpenSdr={() => setScreen("sdr")} />
@@ -34,7 +34,7 @@ export default function Home() {
         ) : activeScreen === "admin" ? (
           <AdminScreen />
         ) : activeScreen === "leads" ? (
-          <LeadSearchScreen navigationOpen={leadNavigationOpen} onToggleNavigation={() => setLeadNavigationOpen((current) => !current)} />
+          <LeadSearchScreen />
         ) : (
           <LeadImportScreen />
         )}
