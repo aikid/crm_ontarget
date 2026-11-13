@@ -72,6 +72,14 @@ export type AdminCampaign = {
 };
 
 export type AdminUser = SessionUser & { lastLoginAt: string | null };
+export type AdminUserSaveResponse = AdminUser & {
+  telephony?: {
+    enabled: boolean;
+    status: "ASSIGNED" | "PENDING" | "DISABLED";
+    extension?: string;
+    message?: string;
+  };
+};
 
 export type ImportErrorRow = {
   id: string;
@@ -366,8 +374,8 @@ export const onTargetApi = {
     updateCampaign: (id: string, payload: Record<string, unknown>) => request<AdminCampaign>(`/api/admin/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
     deleteCampaign: (id: string) => request<void>(`/api/admin/campaigns/${id}`, { method: "DELETE" }),
     users: () => request<{ data: AdminUser[] }>("/api/admin/users"),
-    createUser: (payload: Record<string, unknown>) => request<AdminUser>("/api/admin/users", { method: "POST", body: JSON.stringify(payload) }),
-    updateUser: (id: string, payload: Record<string, unknown>) => request<AdminUser>(`/api/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+    createUser: (payload: Record<string, unknown>) => request<AdminUserSaveResponse>("/api/admin/users", { method: "POST", body: JSON.stringify(payload) }),
+    updateUser: (id: string, payload: Record<string, unknown>) => request<AdminUserSaveResponse>(`/api/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
     imports: () => request<{ data: ImportBatch[] }>("/api/admin/imports"),
     importBatch: (id: string) => request<ImportBatch>(`/api/admin/imports/${id}`),
     importLeads: (payload: FormData) => request<ImportBatch>("/api/admin/imports", { method: "POST", body: payload }),

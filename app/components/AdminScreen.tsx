@@ -153,6 +153,7 @@ export default function AdminScreen() {
     setSaving(true);
     setError("");
     try {
+      let successNotice = `${formEntityLabel(tab)} salvo com sucesso.`;
       if (tab === "clients") {
         if (editing) await onTargetApi.admin.updateClient(editing.id, { name: form.name, email: form.email });
         else await onTargetApi.admin.createClient({ name: form.name, email: form.email });
@@ -175,11 +176,17 @@ export default function AdminScreen() {
           clientId: form.role === "CLIENT" ? form.clientId : null,
           ...(form.password ? { password: form.password } : {}),
         };
-        if (editing) await onTargetApi.admin.updateUser(editing.id, payload);
-        else await onTargetApi.admin.createUser(payload);
+        const saved = editing
+          ? await onTargetApi.admin.updateUser(editing.id, payload)
+          : await onTargetApi.admin.createUser(payload);
+        if (saved.telephony?.status === "ASSIGNED") {
+          successNotice = `Usu\u00e1rio salvo e ramal ${saved.telephony.extension} vinculado com sucesso.`;
+        } else if (saved.telephony?.status === "PENDING") {
+          successNotice = saved.telephony.message || "Usu\u00e1rio salvo, mas est\u00e1 sem ramal SIP.";
+        }
       }
       setFormOpen(false);
-      setNotice(`${formEntityLabel(tab)} salvo com sucesso.`);
+      setNotice(successNotice);
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar o cadastro.");
