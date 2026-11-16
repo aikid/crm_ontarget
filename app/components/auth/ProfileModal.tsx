@@ -12,6 +12,7 @@ type Props = {
 };
 
 const roleLabels: Record<SessionUser["role"], string> = {
+  ADMIN: "Admin do sistema",
   GESTOR: "Gestor",
   SDR: "SDR",
   CLIENT: "Portal do Cliente",

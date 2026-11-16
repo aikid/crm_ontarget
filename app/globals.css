@@ -1739,6 +1739,39 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .results-table tbody tr { cursor: pointer; }
 .results-table td:last-child { color: var(--primary); font-size: 14px; font-weight: 700; }
 
+/* Administra\u00e7\u00e3o t\u00e9cnica do sistema */
+.system-admin-screen { max-width: 1500px; margin: 0 auto; }
+.system-status-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin-bottom: 16px; }
+.system-status-grid article { display: grid; min-height: 118px; padding: 18px 20px; align-content: center; border: 1px solid #e1e5ed; border-radius: 13px; background: #fff; box-shadow: 0 8px 25px rgba(24,35,69,.04); }
+.system-status-grid span { color: #7a8292; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.system-status-grid strong { margin: 5px 0 2px; color: #202a42; font-size: 27px; letter-spacing: -.04em; }
+.system-status-grid small { color: #8a92a2; font-size: 11px; }
+.system-status-grid article.healthy { border-color: #cde9dc; background: #f5fcf8; }
+.system-status-grid article.healthy strong { color: #237254; }
+.system-status-grid article.warning { border-color: #efdba9; background: #fffbf0; }
+.system-status-grid article.warning strong { color: #9a6818; }
+.system-warning { display: flex; margin-bottom: 14px; padding: 13px 15px; align-items: baseline; gap: 9px; border: 1px solid #efdba9; border-radius: 9px; color: #765822; background: #fffbf0; font-size: 12px; }
+.system-warning code, .system-admin-screen code { padding: 2px 5px; border-radius: 5px; background: rgba(34,41,57,.07); font: 600 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.system-card-heading { display: flex; min-height: 69px; padding: 15px 18px; align-items: center; justify-content: space-between; border-bottom: 1px solid #e8eaf0; }
+.system-card-heading > div { display: grid; gap: 3px; }
+.system-card-heading strong { color: #202a42; font-size: 15px; }
+.system-card-heading span { color: #8991a0; font-size: 11px; }
+.system-card-heading button { min-height: 32px; padding: 0 11px; border: 1px solid #dfe3eb; border-radius: 7px; color: #536078; background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
+.system-accounts-card table { min-width: 800px; }
+.system-accounts-card th:last-child, .system-accounts-card td:last-child { text-align: right; }
+.system-accounts-card .admin-actions button.danger { color: #ae3039; }
+.system-accounts-card .admin-actions button.danger:hover { border-color: #e7b5b9; color: #fff; background: #bd3640; }
+.system-account-modal .admin-field small { color: #858d9d; font-size: 10px; font-weight: 500; line-height: 1.45; }
+
+@media (max-width: 950px) {
+  .system-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .system-status-grid { grid-template-columns: 1fr; }
+  .system-status-grid article { min-height: 100px; }
+  .system-warning { align-items: flex-start; flex-direction: column; }
+}
+
 @media (max-width: 760px) {
   .admin-table-card, .import-history { border-radius: 14px; }
   .admin-table-card table { min-width: 760px; }

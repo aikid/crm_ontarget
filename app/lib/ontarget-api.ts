@@ -9,7 +9,7 @@ export type SessionUser = {
   name: string;
   email: string;
   initials: string;
-  role: "GESTOR" | "SDR" | "CLIENT";
+  role: "ADMIN" | "GESTOR" | "SDR" | "CLIENT";
   active: boolean;
   client: null | { id: string; name: string };
 };
@@ -78,6 +78,30 @@ export type AdminUserSaveResponse = AdminUser & {
     status: "ASSIGNED" | "PENDING" | "DISABLED";
     extension?: string;
     message?: string;
+  };
+};
+
+export type SystemSdr = { id: string; name: string; email: string };
+export type SystemSipAccount = {
+  id: string;
+  userId: string | null;
+  email: string | null;
+  extension: string;
+  isAssigned: boolean;
+  assignedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: null | { id: string; name: string; email: string; active: boolean };
+};
+export type SystemSipAccountsResponse = {
+  data: SystemSipAccount[];
+  sdrs: SystemSdr[];
+  configuration: {
+    databaseAccountsEnabled: boolean;
+    encryptionConfigured: boolean;
+    total: number;
+    assigned: number;
+    available: number;
   };
 };
 
@@ -384,5 +408,11 @@ export const onTargetApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  },
+  system: {
+    sipAccounts: () => request<SystemSipAccountsResponse>("/api/system/sip-accounts"),
+    createSipAccount: (payload: { extension: string; password: string; email?: string | null }) => request<SystemSipAccount>("/api/system/sip-accounts", { method: "POST", body: JSON.stringify(payload) }),
+    updateSipAccount: (id: string, payload: { extension?: string; password?: string; email?: string | null }) => request<SystemSipAccount>(`/api/system/sip-accounts/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+    deleteSipAccount: (id: string) => request<void>(`/api/system/sip-accounts/${id}`, { method: "DELETE" }),
   },
 };
