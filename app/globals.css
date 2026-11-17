@@ -1762,6 +1762,7 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
 .system-accounts-card .admin-actions button.danger { color: #ae3039; }
 .system-accounts-card .admin-actions button.danger:hover { border-color: #e7b5b9; color: #fff; background: #bd3640; }
 .system-account-modal .admin-field small { color: #858d9d; font-size: 10px; font-weight: 500; line-height: 1.45; }
+.system-account-modal header > button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
 @media (max-width: 950px) {
   .system-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
