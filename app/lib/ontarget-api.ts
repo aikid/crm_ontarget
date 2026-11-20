@@ -38,6 +38,34 @@ export type ApiCampaign = {
   workedLeads: number;
 };
 
+export type CampaignDashboardResponse = {
+  campaign: ApiCampaign;
+  metrics: {
+    received: number;
+    worked: number;
+    calls: number;
+    contacts: number;
+    appointments: number;
+    qualified: number;
+    opportunities: number;
+    contactRate: string;
+    conversion: string;
+    audited: number;
+    confirmed: number;
+    divergences: number;
+  };
+  evolution: { dates: string[]; leads: number[]; contacts: number[]; appointments: number[] };
+  storePerformance: Array<{
+    store: { id: string; name: string; shortName: string };
+    leads: number;
+    contacts: number;
+    appointments: number;
+    conversion: string;
+  }>;
+  callResults: Array<{ code: string; label: string; value: number; color: string }>;
+  audit: { registered: number; audited: number; confirmed: number; divergences: number; validationRate: number };
+};
+
 export type AdminClient = {
   id: string;
   name: string;

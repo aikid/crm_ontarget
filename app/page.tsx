@@ -16,7 +16,7 @@ export type Screen = "dashboard" | "sdr" | "admin" | "imports" | "leads" | "syst
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const [leadNavigationOpen, setLeadNavigationOpen] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(true);
   const { user, loading, loggingOut, logout } = useAuth();
 
   if (loading) return <main className="auth-page app-boot-screen"><LoadingOverlay show title="Validando seu acesso" message="Conectando ao ambiente seguro da SysOn." /></main>;
@@ -25,8 +25,8 @@ export default function Home() {
   const activeScreen: Screen = user.role === "ADMIN" ? "system" : user.role === "SDR" ? "sdr" : screen;
 
   return (
-    <main className={`app-shell screen-${activeScreen} ${leadNavigationOpen ? "navigation-open" : ""}`}>
-      <Sidebar activeScreen={activeScreen} onNavigate={setScreen} user={user} onLogout={() => void logout()} loggingOut={loggingOut} collapsible={activeScreen === "leads"} expanded={leadNavigationOpen} onToggle={() => setLeadNavigationOpen((current) => !current)} />
+    <main className={`app-shell screen-${activeScreen} ${navigationOpen ? "navigation-open" : ""}`}>
+      <Sidebar activeScreen={activeScreen} onNavigate={setScreen} user={user} onLogout={() => void logout()} loggingOut={loggingOut} collapsible expanded={navigationOpen} onToggle={() => setNavigationOpen((current) => !current)} />
       <section className="app-content">
         {activeScreen === "system" ? (
           <SystemAdminScreen />

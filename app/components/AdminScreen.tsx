@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, InputHTMLAttributes, useCallback, useEffect, useMemo, useState } from "react";
 import {
   onTargetApi,
   type AdminCampaign,
@@ -57,6 +57,7 @@ export default function AdminScreen() {
   const [notice, setNotice] = useState("");
   const [editing, setEditing] = useState<Editing>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [formRevision, setFormRevision] = useState(0);
   const [form, setForm] = useState<FormValues>({});
   const [saving, setSaving] = useState(false);
   const [sendingAccessId, setSendingAccessId] = useState("");
@@ -112,7 +113,6 @@ export default function AdminScreen() {
   function openCreate() {
     const clientId = activeClients[0]?.id || "";
     setEditing(null);
-    setFormOpen(true);
     setNotice("");
     setError("");
     if (tab === "clients") setForm({ name: "", email: "" });
@@ -122,12 +122,13 @@ export default function AdminScreen() {
       setForm({ clientId, storeId: store?.id || "", name: "", status: "ACTIVE", startDate: "", endDate: "" });
     }
     if (tab === "users") setForm({ clientId: "", name: "", email: "", initials: "", role: "SDR", password: "" });
+    setFormRevision((current) => current + 1);
+    setFormOpen(true);
   }
 
   function openEdit(record: Editing) {
     if (!record) return;
     setEditing(record);
-    setFormOpen(true);
     setNotice("");
     setError("");
     if (tab === "clients") {
@@ -146,6 +147,8 @@ export default function AdminScreen() {
       const user = record as AdminUser;
       setForm({ clientId: user.clientId || "", name: user.name, email: user.email, initials: user.initials, role: user.role, password: "" });
     }
+    setFormRevision((current) => current + 1);
+    setFormOpen(true);
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -290,7 +293,7 @@ export default function AdminScreen() {
         <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setFormOpen(false)}>
           <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-form-title">
             <header><div><span>{editing ? "EDITAR" : "NOVO CADASTRO"}</span><h2 id="admin-form-title">{formEntityLabel(tab)}</h2></div><button type="button" onClick={() => setFormOpen(false)} aria-label="Fechar">×</button></header>
-            <form onSubmit={save}>
+            <form key={formRevision} onSubmit={save} autoComplete="off">
               {tab === "clients" && <>
                 <TextField label="Nome do cliente" value={form.name} onChange={(value) => setField("name", value)} />
                 <TextField label="E-mail" type="email" value={form.email} onChange={(value) => setField("email", value)} />
@@ -308,10 +311,10 @@ export default function AdminScreen() {
               </>}
               {tab === "users" && <>
                 <TextField label="Nome" value={form.name} onChange={(value) => setField("name", value)} />
-                <div className="admin-form-grid"><TextField label="E-mail" type="email" value={form.email} onChange={(value) => setField("email", value)} /><TextField label="Iniciais" value={form.initials} required={false} onChange={(value) => setField("initials", value.toUpperCase())} maxLength={4} /></div>
+                <div className="admin-form-grid"><TextField label="E-mail" type="email" name="new-user-email" autoComplete="off" preventAutofill value={form.email} onChange={(value) => setField("email", value)} /><TextField label="Iniciais" name="new-user-initials" autoComplete="off" value={form.initials} required={false} onChange={(value) => setField("initials", value.toUpperCase())} maxLength={4} /></div>
                 <SelectField label="Perfil" value={form.role} onChange={(value) => setField("role", value)} options={[["GESTOR", "Gestor"], ["SDR", "SDR"], ["CLIENT", "Portal do Cliente"]]} />
                 {form.role === "CLIENT" && <SelectField label="Cliente" value={form.clientId} onChange={(value) => setField("clientId", value)} options={activeClients.map((row) => [row.id, row.name])} />}
-                <TextField label={editing ? "Nova senha (opcional)" : "Senha inicial"} type="password" value={form.password} required={!editing} onChange={(value) => setField("password", value)} minLength={8} />
+                <TextField label={editing ? "Nova senha (opcional)" : "Senha inicial"} type="password" name="new-user-password" autoComplete="new-password" preventAutofill value={form.password} required={!editing} onChange={(value) => setField("password", value)} minLength={8} />
               </>}
               <footer><button type="button" onClick={() => setFormOpen(false)}>Cancelar</button><button className="primary" type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</button></footer>
             </form>
@@ -344,5 +347,17 @@ function StoreTable({ rows, deletingId, onEdit, onToggle, onDelete }: { rows: Ad
 function CampaignTable({ rows, deletingId, onEdit, onStatus, onDelete }: { rows: AdminCampaign[]; deletingId: string; onEdit: (row: AdminCampaign) => void; onStatus: (row: AdminCampaign, status: AdminCampaign["status"]) => void; onDelete: (row: AdminCampaign) => void }) { return <table><thead><tr><th>Ação</th><th>Cliente / vendedor</th><th>Período</th><th>Leads</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.id} tone="violet" /></td><td>{row.client.name}<small>{row.store.shortName}</small></td><td>{formatDate(row.startDate)} — {formatDate(row.endDate)}</td><td><span className="table-number">{row._count.leads}</span></td><td><Status active={row.status === "ACTIVE"} label={campaignStatus(row.status)} /></td><td><div className="admin-actions"><button type="button" onClick={() => onEdit(row)}>Editar</button><button className={row.status === "ACTIVE" ? "danger-action" : "success-action"} type="button" onClick={() => onStatus(row, row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}>{row.status === "ACTIVE" ? "Desativar" : "Ativar"}</button><button className="danger-action" type="button" disabled={deletingId === row.id} onClick={() => onDelete(row)}>{deletingId === row.id ? "Excluindo..." : "Excluir"}</button></div></td></tr>)}</tbody></table>; }
 function UserTable({ rows, onEdit, onToggle }: { rows: AdminUser[]; onEdit: (row: AdminUser) => void; onToggle: (row: AdminUser) => void }) { return <table><thead><tr><th>Usuário</th><th>Perfil</th><th>Cliente</th><th>Último acesso</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.email} tone="green" /></td><td>{roleLabel(row.role)}</td><td>{row.client?.name || "SysOn"}</td><td>{row.lastLoginAt ? formatDate(row.lastLoginAt) : "Nunca"}</td><td><Status active={row.active} /></td><td><Actions active={row.active} onEdit={() => onEdit(row)} onToggle={() => onToggle(row)} /></td></tr>)}</tbody></table>; }
 
-function TextField({ label, value = "", onChange, type = "text", required = true, ...input }: { label: string; value?: string; onChange: (value: string) => void; type?: string; required?: boolean; minLength?: number; maxLength?: number }) { return <label className="admin-field"><span>{label}</span><input {...input} type={type} value={value} required={required} onChange={(event) => onChange(event.target.value)} /></label>; }
+type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type" | "required"> & {
+  label: string;
+  value?: string;
+  onChange: (value: string) => void;
+  type?: string;
+  required?: boolean;
+  preventAutofill?: boolean;
+};
+
+function TextField({ label, value = "", onChange, type = "text", required = true, preventAutofill = false, onFocus, ...input }: TextFieldProps) {
+  const [autofillLocked, setAutofillLocked] = useState(preventAutofill);
+  return <label className="admin-field"><span>{label}</span><input {...input} type={type} value={value} required={required} readOnly={autofillLocked || input.readOnly} onFocus={(event) => { setAutofillLocked(false); onFocus?.(event); }} onChange={(event) => onChange(event.target.value)} data-1p-ignore={preventAutofill ? "true" : undefined} data-lpignore={preventAutofill ? "true" : undefined} data-bwignore={preventAutofill ? "true" : undefined} /></label>;
+}
 function SelectField({ label, value = "", onChange, options, disabled = false }: { label: string; value?: string; onChange: (value: string) => void; options: string[][]; disabled?: boolean }) { return <label className="admin-field"><span>{label}</span><select value={value} required disabled={disabled} onChange={(event) => onChange(event.target.value)}><option value="" disabled>Selecione</option>{options.map(([id, option]) => <option key={id} value={id}>{option}</option>)}</select></label>; }

@@ -11,7 +11,7 @@ type ClientSidebarProps = {
 
 const items = [
   { id: "dashboard", label: "Visão geral", icon: "home" },
-  { id: "results", label: "Resultados", icon: "results" },
+  { id: "results", label: "Relatórios", icon: "results" },
 ];
 
 function ClientNavIcon({ name }: { name: string }) {

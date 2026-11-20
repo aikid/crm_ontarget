@@ -1,151 +1,86 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { clientLeads, clientStores, getStore, type Campaign, type PortalLead } from "../../data/clientPortalData";
+import { useEffect, useMemo, useState } from "react";
+import { onTargetApi, type ApiCampaign, type ApiLead, type CampaignDashboardResponse } from "../../lib/ontarget-api";
 import LeadDrawer from "./LeadDrawer";
 
 type ResultsTab = "appointments" | "qualified" | "all";
-
-type ClientResultsProps = {
-  campaign: Campaign;
-};
-
-const sellers = ["Carlos Mendes", "Ricardo Santos", "Fernanda Lima", "Marcos Vieira"];
-const vehicles = ["T-Cross Comfortline", "Nivus Highline", "Polo Highline", "Taos Comfortline", "Virtus Highline"];
+type ClientResultsProps = { campaign: ApiCampaign };
 
 function StatusBadge({ value }: { value: string }) {
-  const tone = value === "Confirmado" || value === "Agendado" || value === "Qualificado"
-    ? "success"
-    : value === "Revisão" || value === "Retorno"
-      ? "warning"
-      : value === "Não atendeu"
-        ? "neutral"
-        : "muted";
+  const tone = ["Confirmado", "Agendado", "Qualificado", "Direcionado"].includes(value) ? "success" : ["Revisão", "Retornar"].includes(value) ? "warning" : "neutral";
   return <span className={`client-status-badge ${tone}`}><i />{value}</span>;
 }
 
 export default function ClientResults({ campaign }: ClientResultsProps) {
   const [tab, setTab] = useState<ResultsTab>("appointments");
   const [search, setSearch] = useState("");
-  const [period, setPeriod] = useState("all");
   const [storeId, setStoreId] = useState("all");
   const [seller, setSeller] = useState("all");
   const [vehicle, setVehicle] = useState("all");
   const [audit, setAudit] = useState("all");
-  const [selectedLead, setSelectedLead] = useState<PortalLead | null>(null);
-  const [toast, setToast] = useState("");
+  const [page, setPage] = useState(1);
+  const [leads, setLeads] = useState<ApiLead[]>([]);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, pages: 0 });
+  const [dashboard, setDashboard] = useState<CampaignDashboardResponse | null>(null);
+  const [selectedLead, setSelectedLead] = useState<ApiLead | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const campaignLeads = useMemo(
-    () => clientLeads.filter((lead) => lead.campaignId === campaign.id || campaign.id !== "FEIRAO-VW-AGO"),
-    [campaign.id],
-  );
+  useEffect(() => {
+    let active = true;
+    onTargetApi.campaignDashboard<CampaignDashboardResponse>(campaign.id).then((value) => active && setDashboard(value)).catch(() => active && setDashboard(null));
+    return () => { active = false; };
+  }, [campaign.id]);
 
-  const filteredLeads = useMemo(() => {
-    return campaignLeads.filter((lead) => {
-      if (tab === "appointments" && lead.status !== "Agendado") return false;
-      if (tab === "qualified" && lead.status !== "Qualificado") return false;
-      if (search && !`${lead.name} ${lead.phone}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR"))) return false;
-      if (storeId !== "all" && lead.storeId !== storeId) return false;
-      if (seller !== "all" && lead.appointment?.seller !== seller) return false;
-      if (vehicle !== "all" && lead.vehicle !== vehicle) return false;
-      if (audit !== "all" && lead.audit.status !== audit) return false;
-      if (period === "future" && lead.appointment && !["11/08/2026", "12/08/2026"].includes(lead.appointment.date)) return false;
-      return true;
-    });
-  }, [audit, campaignLeads, period, search, seller, storeId, tab, vehicle]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      let active = true;
+      onTargetApi.campaignLeads(campaign.id, { page, pageSize: 20, category: tab === "all" ? undefined : tab, search, storeId, seller, vehicle, audit })
+        .then((response) => { if (active) { setLeads(response.data); setPagination(response.pagination); setError(""); } })
+        .catch((cause: Error) => active && setError(cause.message))
+        .finally(() => active && setLoading(false));
+      return () => { active = false; };
+    }, search ? 300 : 0);
+    return () => window.clearTimeout(timer);
+  }, [audit, campaign.id, page, search, seller, storeId, tab, vehicle]);
 
-  function clearFilters() {
-    setSearch("");
-    setPeriod("all");
-    setStoreId("all");
-    setSeller("all");
-    setVehicle("all");
-    setAudit("all");
-  }
+  const sellers = useMemo(() => [...new Set(leads.map((lead) => lead.appointment?.seller).filter(Boolean) as string[])].sort(), [leads]);
+  const vehicles = useMemo(() => [...new Set(leads.map((lead) => lead.vehicle).filter(Boolean) as string[])].sort(), [leads]);
+  const metrics = dashboard?.metrics;
 
-  function simulateExport() {
-    setToast(`${filteredLeads.length} registros preparados para exportação.`);
-    window.setTimeout(() => setToast(""), 2200);
-  }
+  function clearFilters() { setSearch(""); setStoreId("all"); setSeller("all"); setVehicle("all"); setAudit("all"); setPage(1); }
 
-  return (
-    <div className="client-page client-results-page">
-      <div className="client-page-intro results-intro">
-        <div>
-          <span className="client-eyebrow">RESULTADOS DA CAMPANHA</span>
-          <h1>Agendamentos e leads</h1>
-          <p>Consulte os resultados gerados pela operação da campanha {campaign.name}.</p>
-        </div>
-        <button type="button" className="client-primary-button export-button" onClick={simulateExport}><span>↓</span> Exportar resultados</button>
+  return <div className="client-page client-results-page">
+    <div className="client-page-intro results-intro"><div><span className="client-eyebrow">RELATÓRIOS DA CAMPANHA</span><h1>Agendamentos e leads</h1><p>Dados exclusivos da campanha {campaign.name}.</p></div></div>
+    <section className="results-summary-strip">
+      <div><span className="client-kpi-icon green">AG</span><p><strong>{metrics?.appointments || 0}</strong><span>Agendamentos</span></p><small>Campanha atual</small></div>
+      <div><span className="client-kpi-icon violet">QL</span><p><strong>{metrics?.qualified || 0}</strong><span>Qualificados</span></p><small>Oportunidades</small></div>
+      <div><span className="client-kpi-icon blue">AU</span><p><strong>{(dashboard?.audit.validationRate || 0).toFixed(1)}%</strong><span>Validação</span></p><small>Auditorias confirmadas</small></div>
+      <div><span className="client-kpi-icon indigo">AT</span><p><strong>{metrics?.contacts || 0}</strong><span>Contatos</span></p><small>{metrics?.contactRate || "0,0%"} da base trabalhada</small></div>
+    </section>
+
+    <section className="client-panel results-workbench">
+      <div className="results-tabs" role="tablist"><button type="button" className={tab === "appointments" ? "active" : ""} onClick={() => { setTab("appointments"); setPage(1); }}>Agendamentos <span>{metrics?.appointments || 0}</span></button><button type="button" className={tab === "qualified" ? "active" : ""} onClick={() => { setTab("qualified"); setPage(1); }}>Qualificados <span>{metrics?.qualified || 0}</span></button><button type="button" className={tab === "all" ? "active" : ""} onClick={() => { setTab("all"); setPage(1); }}>Todos os leads <span>{metrics?.received || 0}</span></button></div>
+      <div className="results-toolbar"><label className="results-search"><span>⌕</span><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Buscar por nome ou telefone" /></label><div className="result-filter-row">
+        <label><span>Loja</span><select value={storeId} onChange={(event) => { setStoreId(event.target.value); setPage(1); }}><option value="all">Todas as lojas</option>{dashboard?.storePerformance.map(({ store }) => <option value={store.id} key={store.id}>{store.shortName}</option>)}</select></label>
+        <label><span>Vendedor</span><select value={seller} onChange={(event) => { setSeller(event.target.value); setPage(1); }}><option value="all">Todos</option>{sellers.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label><span>Veículo</span><select value={vehicle} onChange={(event) => { setVehicle(event.target.value); setPage(1); }}><option value="all">Todos</option>{vehicles.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label><span>Auditoria</span><select value={audit} onChange={(event) => { setAudit(event.target.value); setPage(1); }}><option value="all">Todos</option><option value="confirmed">Confirmado</option><option value="review">Revisão</option><option value="not_audited">Não auditado</option></select></label>
+        <button type="button" className="clear-filters-button" onClick={clearFilters}>Limpar</button>
+      </div></div>
+      <div className="results-table-meta"><span><strong>{pagination.total}</strong> registros desta campanha</span><span>{loading ? "Atualizando..." : "Dados atualizados"}</span></div>
+      <div className="client-table-wrap results-table-wrap">
+        {error ? <div className="results-empty"><strong>Não foi possível carregar os leads</strong><p>{error}</p></div> : !loading && !leads.length ? <div className="results-empty"><span>⌕</span><strong>Nenhum resultado encontrado</strong><p>Ajuste ou limpe os filtros.</p><button type="button" onClick={clearFilters}>Limpar filtros</button></div> :
+          <table className="client-table results-table"><thead><tr><th>Lead</th><th>Veículo</th>{tab === "appointments" && <><th>Data agendada</th><th>Período</th><th>Vendedor</th></>}{tab === "qualified" && <><th>Tipo</th><th>Data</th></>}<th>Loja</th><th>Auditoria</th><th>Status</th><th /></tr></thead><tbody>{leads.map((lead) => <tr key={lead.id} onClick={() => setSelectedLead(lead)}>
+            <td><span className="lead-list-avatar">{lead.initials}</span><div><strong>{lead.name}</strong><small>{lead.phone}</small></div></td><td>{lead.vehicle || "—"}</td>
+            {tab === "appointments" && <><td><strong>{lead.appointment?.date || "—"}</strong></td><td>{lead.appointment?.period || "—"}</td><td>{lead.appointment?.seller || <span className="empty-value">Não definido</span>}</td></>}
+            {tab === "qualified" && <><td>{lead.qualification?.type || "Direcionado"}</td><td>{lead.qualification?.date || lead.lastContact}</td></>}
+            <td>{lead.store.shortName}</td><td><StatusBadge value={lead.audit.status} /></td><td><StatusBadge value={lead.status} /></td><td>›</td>
+          </tr>)}</tbody></table>}
       </div>
-
-      <section className="results-summary-strip">
-        <div><span className="client-kpi-icon green">AG</span><p><strong>142</strong><span>Agendamentos</span></p><small className="positive">+9 esta semana</small></div>
-        <div><span className="client-kpi-icon violet">QL</span><p><strong>83</strong><span>Qualificados</span></p><small>Oportunidades</small></div>
-        <div><span className="client-kpi-icon blue">AU</span><p><strong>96,4%</strong><span>Validação</span></p><small className="positive">Alta qualidade</small></div>
-        <div><span className="client-kpi-icon indigo">AT</span><p><strong>531</strong><span>Contatos</span></p><small>43,7% da base</small></div>
-      </section>
-
-      <section className="client-panel results-workbench">
-        <div className="results-tabs" role="tablist" aria-label="Categorias de resultados">
-          <button type="button" role="tab" aria-selected={tab === "appointments"} className={tab === "appointments" ? "active" : ""} onClick={() => setTab("appointments")}>Agendamentos <span>142</span></button>
-          <button type="button" role="tab" aria-selected={tab === "qualified"} className={tab === "qualified" ? "active" : ""} onClick={() => setTab("qualified")}>Qualificados <span>83</span></button>
-          <button type="button" role="tab" aria-selected={tab === "all"} className={tab === "all" ? "active" : ""} onClick={() => setTab("all")}>Todos os leads <span>1.214</span></button>
-        </div>
-
-        <div className="results-toolbar">
-          <label className="results-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome ou telefone" aria-label="Buscar por nome ou telefone" /></label>
-          <div className="result-filter-row">
-            <label><span>Período</span><select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="all">Todo o período</option><option value="future">Próximos dias</option></select></label>
-            <label><span>Loja</span><select value={storeId} onChange={(event) => setStoreId(event.target.value)}><option value="all">Todas as lojas</option>{clientStores.map((store) => <option value={store.id} key={store.id}>{store.shortName}</option>)}</select></label>
-            <label><span>Vendedor</span><select value={seller} onChange={(event) => setSeller(event.target.value)}><option value="all">Todos</option>{sellers.map((name) => <option key={name}>{name}</option>)}</select></label>
-            <label><span>Veículo</span><select value={vehicle} onChange={(event) => setVehicle(event.target.value)}><option value="all">Todos</option>{vehicles.map((name) => <option key={name}>{name}</option>)}</select></label>
-            <label><span>Auditoria</span><select value={audit} onChange={(event) => setAudit(event.target.value)}><option value="all">Todos</option><option>Confirmado</option><option>Revisão</option><option>Não auditado</option></select></label>
-            <button type="button" className="clear-filters-button" onClick={clearFilters}>Limpar</button>
-          </div>
-        </div>
-
-        <div className="results-table-meta"><span><strong>{filteredLeads.length}</strong> registros exibidos no mockup</span><span>Última atualização: hoje, 18:12</span></div>
-        <div className="client-table-wrap results-table-wrap">
-          {filteredLeads.length === 0 ? (
-            <div className="results-empty"><span>⌕</span><strong>Nenhum resultado encontrado</strong><p>Ajuste os filtros ou limpe a busca para visualizar os registros.</p><button type="button" onClick={clearFilters}>Limpar filtros</button></div>
-          ) : (
-            <table className="client-table results-table">
-              {tab === "appointments" && (
-                <>
-                  <thead><tr><th>Lead</th><th>Veículo</th><th>Data agendada</th><th>Período</th><th>Loja</th><th>Vendedor</th><th>Auditoria</th><th>Status</th><th /></tr></thead>
-                  <tbody>{filteredLeads.map((lead) => <tr key={lead.id} onClick={() => setSelectedLead(lead)}>
-                    <td><span className="lead-list-avatar">{lead.name.split(" ").map((name) => name[0]).slice(0, 2).join("")}</span><div><strong>{lead.name}</strong><small>{lead.phone}</small></div></td>
-                    <td>{lead.vehicle}</td><td><strong>{lead.appointment?.date}</strong></td><td>{lead.appointment?.period}</td><td>{getStore(lead.storeId)?.shortName}</td><td>{lead.appointment?.seller ?? <span className="empty-value">Não definido</span>}</td><td><StatusBadge value={lead.audit.status} /></td><td><StatusBadge value={lead.status} /></td><td>›</td>
-                  </tr>)}</tbody>
-                </>
-              )}
-              {tab === "qualified" && (
-                <>
-                  <thead><tr><th>Lead</th><th>Veículo</th><th>Tipo</th><th>Loja direcionada</th><th>Data</th><th>Auditoria</th><th /></tr></thead>
-                  <tbody>{filteredLeads.map((lead) => <tr key={lead.id} onClick={() => setSelectedLead(lead)}>
-                    <td><span className="lead-list-avatar">{lead.name.split(" ").map((name) => name[0]).slice(0, 2).join("")}</span><div><strong>{lead.name}</strong><small>{lead.phone}</small></div></td>
-                    <td>{lead.vehicle}</td><td><strong>{lead.qualification?.type}</strong></td><td>{getStore(lead.storeId)?.shortName}</td><td>{lead.qualification?.date}</td><td><StatusBadge value={lead.audit.status} /></td><td>›</td>
-                  </tr>)}</tbody>
-                </>
-              )}
-              {tab === "all" && (
-                <>
-                  <thead><tr><th>Lead</th><th>Telefone</th><th>Veículo</th><th>Loja</th><th>Tentativas</th><th>Último contato</th><th>Status</th><th /></tr></thead>
-                  <tbody>{filteredLeads.map((lead) => <tr key={lead.id} onClick={() => setSelectedLead(lead)}>
-                    <td><span className="lead-list-avatar">{lead.name.split(" ").map((name) => name[0]).slice(0, 2).join("")}</span><div><strong>{lead.name}</strong><small>{lead.origin}</small></div></td>
-                    <td>{lead.phone}</td><td>{lead.vehicle}</td><td>{getStore(lead.storeId)?.shortName}</td><td><span className="attempt-count">{lead.attempts}</span></td><td>{lead.lastContact}</td><td><StatusBadge value={lead.status} /></td><td>›</td>
-                  </tr>)}</tbody>
-                </>
-              )}
-            </table>
-          )}
-        </div>
-        <div className="results-footer"><span>Dados fictícios para demonstração comercial</span><div><button type="button" disabled>‹</button><button type="button" className="active">1</button><button type="button">2</button><button type="button">3</button><button type="button">›</button></div></div>
-      </section>
-
-      {selectedLead && <LeadDrawer lead={selectedLead} campaign={campaign} onClose={() => setSelectedLead(null)} />}
-      {toast && <div className="toast-message client-toast"><span>✓</span>{toast}</div>}
-    </div>
-  );
+      <div className="results-footer"><span>Página {pagination.page} de {Math.max(1, pagination.pages)}</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>‹</button>{Array.from({ length: Math.min(5, pagination.pages) }, (_, index) => index + 1).map((value) => <button type="button" key={value} className={page === value ? "active" : ""} onClick={() => setPage(value)}>{value}</button>)}<button type="button" disabled={page >= pagination.pages} onClick={() => setPage((value) => value + 1)}>›</button></div></div>
+    </section>
+    {selectedLead && <LeadDrawer lead={selectedLead} onClose={() => setSelectedLead(null)} />}
+  </div>;
 }

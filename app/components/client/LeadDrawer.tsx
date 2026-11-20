@@ -1,100 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
-import { getStore, type Campaign, type PortalLead } from "../../data/clientPortalData";
+import type { ApiLead } from "../../lib/ontarget-api";
 
-type LeadDrawerProps = {
-  lead: PortalLead;
-  campaign: Campaign;
-  onClose: () => void;
-};
+type LeadDrawerProps = { lead: ApiLead; onClose: () => void };
 
-export default function LeadDrawer({ lead, campaign, onClose }: LeadDrawerProps) {
-  const store = getStore(lead.storeId)!;
-
+export default function LeadDrawer({ lead, onClose }: LeadDrawerProps) {
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  return (
-    <div className="lead-drawer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <aside className="lead-drawer" role="dialog" aria-modal="true" aria-labelledby="lead-drawer-title">
-        <header className="lead-drawer-header">
-          <div><span>DETALHE DO LEAD</span><p>Visualização somente leitura</p></div>
-          <button type="button" onClick={onClose} aria-label="Fechar detalhes">×</button>
-        </header>
-
-        <div className="lead-drawer-scroll">
-          <section className="drawer-lead-identity">
-            <span className="drawer-avatar">{lead.name.split(" ").map((name) => name[0]).slice(0, 2).join("")}</span>
-            <div><h2 id="lead-drawer-title">{lead.name}</h2><p>{lead.phone}</p><span className={`drawer-status ${lead.status.toLowerCase().replace(" ", "-")}`}><i />{lead.status}</span></div>
-          </section>
-
-          <section className="drawer-section">
-            <div className="drawer-section-heading"><span className="drawer-section-icon">D</span><div><h3>Dados do lead</h3><p>Informações da campanha</p></div></div>
-            <div className="drawer-info-grid">
-              <div><span>Veículo de interesse</span><strong>{lead.vehicle}</strong></div>
-              <div><span>Campanha</span><strong>{campaign.name}</strong></div>
-              <div><span>Origem</span><strong>{lead.origin}</strong></div>
-              <div><span>Loja de origem</span><strong>{store.shortName}</strong></div>
-            </div>
-          </section>
-
-          <section className="drawer-section">
-            <div className="drawer-section-heading"><span className="drawer-section-icon">H</span><div><h3>Histórico de contatos</h3><p>{lead.attempts} {lead.attempts === 1 ? "tentativa registrada" : "tentativas registradas"}</p></div></div>
-            <div className="drawer-timeline">
-              {lead.history.map((item, index) => (
-                <div key={`${item.time}-${index}`} className={index === lead.history.length - 1 ? "latest" : ""}>
-                  <i>{index === lead.history.length - 1 ? "✓" : index + 1}</i>
-                  <div className="timeline-date"><strong>{item.date}</strong><span>{item.time}</span></div>
-                  <div className="timeline-copy"><strong>{item.title}</strong><span>{item.detail}</span></div>
-                  <span className={`timeline-result ${item.result.toLowerCase().replace(" ", "-")}`}>{item.result}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {lead.appointment && (
-            <section className="drawer-section drawer-appointment-section">
-              <div className="drawer-section-heading"><span className="drawer-section-icon success">A</span><div><h3>Agendamento</h3><p>Visita registrada pela operação</p></div><span className="confirmed-seal">✓ Confirmado</span></div>
-              <div className="drawer-info-grid appointment-grid">
-                <div><span>Data</span><strong>{lead.appointment.date}</strong></div>
-                <div><span>Período</span><strong>{lead.appointment.period}</strong></div>
-                <div><span>Loja</span><strong>{store.shortName}</strong></div>
-                <div><span>Vendedor</span><strong>{lead.appointment.seller ?? "A definir"}</strong></div>
-                <div className="full"><span>Veículo</span><strong>{lead.vehicle}</strong></div>
-              </div>
-            </section>
-          )}
-
-          {lead.qualification && (
-            <section className="drawer-section drawer-appointment-section">
-              <div className="drawer-section-heading"><span className="drawer-section-icon success">Q</span><div><h3>Qualificação</h3><p>Oportunidade encaminhada</p></div><span className="confirmed-seal">✓ Confirmado</span></div>
-              <div className="drawer-info-grid"><div><span>Tipo</span><strong>{lead.qualification.type}</strong></div><div><span>Data</span><strong>{lead.qualification.date}</strong></div><div><span>Loja direcionada</span><strong>{store.shortName}</strong></div><div><span>Veículo</span><strong>{lead.vehicle}</strong></div></div>
-            </section>
-          )}
-
-          <section className={`drawer-section drawer-audit-section ${lead.audit.status === "Revisão" ? "review" : lead.audit.status === "Não auditado" ? "pending" : ""}`}>
-            <div className="drawer-section-heading"><span className="drawer-section-icon ai">IA</span><div><h3>Auditoria</h3><p>Validação assistida por IA</p></div></div>
-            {lead.audit.status === "Não auditado" ? (
-              <div className="audit-pending-copy"><span>—</span><div><strong>Auditoria não aplicável</strong><p>Este contato não gerou agendamento ou qualificação para validação.</p></div></div>
-            ) : (
-              <>
-                <div className="drawer-audit-result">
-                  <div><span className="audit-check">✓</span><p><strong>{lead.audit.status}</strong><small>Classificação gerada pela auditoria</small></p></div>
-                  <div className="confidence-score"><span>Confiança</span><strong>{lead.audit.confidence || "—"}</strong></div>
-                </div>
-                {lead.auditSummary && <div className="audit-evidence"><span>RESUMO DA IA</span><p>{lead.auditSummary}</p></div>}
-                <div className="audit-evidence"><span>EVIDÊNCIA DA LIGAÇÃO</span><p>“{lead.audit.evidence}”</p></div>
-                <div className="audit-date">Data da auditoria: <strong>{lead.audit.auditedAt}</strong></div>
-              </>
-            )}
-          </section>
-
-        </div>
-      </aside>
-    </div>
-  );
+  return <div className="lead-drawer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <aside className="lead-drawer" role="dialog" aria-modal="true" aria-labelledby="lead-drawer-title">
+      <header className="lead-drawer-header"><div><span id="lead-drawer-title">RESUMO DA AUDITORIA</span><p>Visualização somente leitura</p></div><button type="button" onClick={onClose} aria-label="Fechar resumo">×</button></header>
+      <div className="lead-drawer-scroll">
+        <section className="drawer-section drawer-audit-section">
+          <div className="drawer-section-heading"><span className="drawer-section-icon ai">IA</span><div><h3>Resumo da auditoria</h3><p>Conteúdo gerado pela análise da ligação</p></div></div>
+          {lead.auditSummary ? <div className="audit-evidence"><span>RESUMO</span><p>{lead.auditSummary}</p></div> : <div className="audit-pending-copy"><span>—</span><div><strong>Resumo ainda não disponível</strong><p>Este lead ainda não possui um resumo de auditoria registrado.</p></div></div>}
+        </section>
+      </div>
+    </aside>
+  </div>;
 }
