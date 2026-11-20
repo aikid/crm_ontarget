@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { onTargetApi, type ApiCampaign } from "../../lib/ontarget-api";
 import { useAuth } from "../auth/AuthProvider";
 import LoadingOverlay from "../ui/LoadingOverlay";
@@ -16,6 +16,7 @@ export default function ClientPortal() {
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
   const [campaignId, setCampaignId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [campaignDataLoading, setCampaignDataLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -34,6 +35,13 @@ export default function ClientPortal() {
 
   const currentCampaign = campaigns.find((campaign) => campaign.id === campaignId) || null;
   const clientName = user?.client?.name || "Cliente";
+  const handleCampaignReady = useCallback(() => setCampaignDataLoading(false), []);
+
+  function handleCampaignChange(nextCampaignId: string) {
+    if (nextCampaignId === campaignId) return;
+    setCampaignDataLoading(true);
+    setCampaignId(nextCampaignId);
+  }
 
   return (
     <main className="client-app-shell">
@@ -45,7 +53,7 @@ export default function ClientPortal() {
             <div>
               <span>Campanha selecionada</span>
               <label className="client-campaign-select">
-                <select value={campaignId} onChange={(event) => setCampaignId(event.target.value)} aria-label="Selecionar campanha" disabled={!campaigns.length}>
+                <select value={campaignId} onChange={(event) => handleCampaignChange(event.target.value)} aria-label="Selecionar campanha" disabled={!campaigns.length || campaignDataLoading}>
                   {campaigns.map((campaign) => <option value={campaign.id} key={campaign.id}>{campaign.name}</option>)}
                 </select>
                 <i>⌄</i>
@@ -61,14 +69,20 @@ export default function ClientPortal() {
           </div></div></div>
         </header>
 
-        {loading ? <LoadingOverlay show title="Carregando campanhas" message="Buscando os dados deste cliente." /> : error ? (
+        <LoadingOverlay
+          show={loading || Boolean(currentCampaign && campaignDataLoading)}
+          title={loading ? "Carregando campanhas" : "Atualizando campanha"}
+          message={loading ? "Buscando os dados deste cliente." : "Carregando os indicadores e resultados da campanha selecionada."}
+        />
+
+        {loading ? null : error ? (
           <div className="client-page"><div className="results-empty"><strong>Não foi possível carregar as campanhas</strong><p>{error}</p></div></div>
         ) : !currentCampaign ? (
           <div className="client-page"><div className="results-empty"><strong>Nenhuma campanha disponível</strong><p>Não há campanhas vinculadas a este cliente.</p></div></div>
         ) : screen === "dashboard" ? (
-          <ClientDashboard key={currentCampaign.id} campaign={currentCampaign} userName={user?.name || "Cliente"} onOpenResults={() => setScreen("results")} />
+          <ClientDashboard key={currentCampaign.id} campaign={currentCampaign} userName={user?.name || "Cliente"} onOpenResults={() => setScreen("results")} onReady={handleCampaignReady} />
         ) : (
-          <ClientResults key={currentCampaign.id} campaign={currentCampaign} />
+          <ClientResults key={currentCampaign.id} campaign={currentCampaign} onReady={handleCampaignReady} />
         )}
       </section>
     </main>

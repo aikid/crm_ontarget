@@ -5,14 +5,14 @@ import { onTargetApi, type ApiCampaign, type ApiLead, type CampaignDashboardResp
 import LeadDrawer from "./LeadDrawer";
 
 type ResultsTab = "appointments" | "qualified" | "all";
-type ClientResultsProps = { campaign: ApiCampaign };
+type ClientResultsProps = { campaign: ApiCampaign; onReady?: () => void };
 
 function StatusBadge({ value }: { value: string }) {
   const tone = ["Confirmado", "Agendado", "Qualificado", "Direcionado"].includes(value) ? "success" : ["Revisão", "Retornar"].includes(value) ? "warning" : "neutral";
   return <span className={`client-status-badge ${tone}`}><i />{value}</span>;
 }
 
-export default function ClientResults({ campaign }: ClientResultsProps) {
+export default function ClientResults({ campaign, onReady }: ClientResultsProps) {
   const [tab, setTab] = useState<ResultsTab>("appointments");
   const [search, setSearch] = useState("");
   const [storeId, setStoreId] = useState("all");
@@ -23,27 +23,37 @@ export default function ClientResults({ campaign }: ClientResultsProps) {
   const [leads, setLeads] = useState<ApiLead[]>([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, pages: 0 });
   const [dashboard, setDashboard] = useState<CampaignDashboardResponse | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<ApiLead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
-    onTargetApi.campaignDashboard<CampaignDashboardResponse>(campaign.id).then((value) => active && setDashboard(value)).catch(() => active && setDashboard(null));
+    onTargetApi.campaignDashboard<CampaignDashboardResponse>(campaign.id)
+      .then((value) => active && setDashboard(value))
+      .catch(() => active && setDashboard(null))
+      .finally(() => active && setDashboardLoading(false));
     return () => { active = false; };
   }, [campaign.id]);
 
   useEffect(() => {
+    let active = true;
     const timer = window.setTimeout(() => {
-      let active = true;
       onTargetApi.campaignLeads(campaign.id, { page, pageSize: 20, category: tab === "all" ? undefined : tab, search, storeId, seller, vehicle, audit })
         .then((response) => { if (active) { setLeads(response.data); setPagination(response.pagination); setError(""); } })
         .catch((cause: Error) => active && setError(cause.message))
         .finally(() => active && setLoading(false));
-      return () => { active = false; };
     }, search ? 300 : 0);
-    return () => window.clearTimeout(timer);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [audit, campaign.id, page, search, seller, storeId, tab, vehicle]);
+
+  useEffect(() => {
+    if (!loading && !dashboardLoading) onReady?.();
+  }, [dashboardLoading, loading, onReady]);
 
   const sellers = useMemo(() => [...new Set(leads.map((lead) => lead.appointment?.seller).filter(Boolean) as string[])].sort(), [leads]);
   const vehicles = useMemo(() => [...new Set(leads.map((lead) => lead.vehicle).filter(Boolean) as string[])].sort(), [leads]);

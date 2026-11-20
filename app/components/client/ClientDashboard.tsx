@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { onTargetApi, type ApiCampaign, type CampaignDashboardResponse } from "../../lib/ontarget-api";
 
-type ClientDashboardProps = { campaign: ApiCampaign; userName: string; onOpenResults: () => void };
+type ClientDashboardProps = { campaign: ApiCampaign; userName: string; onOpenResults: () => void; onReady?: () => void };
 type ChartMode = "appointments" | "contacts" | "leads";
 const chartLabels: Record<ChartMode, string> = { appointments: "Agendamentos", contacts: "Contatos", leads: "Leads trabalhados" };
 const emptyMetrics: CampaignDashboardResponse["metrics"] = { received: 0, worked: 0, calls: 0, contacts: 0, appointments: 0, qualified: 0, opportunities: 0, contactRate: "0,0%", conversion: "0,0%", audited: 0, confirmed: 0, divergences: 0 };
@@ -12,7 +12,7 @@ function formatNumber(value: number) { return new Intl.NumberFormat("pt-BR").for
 function ratio(value: number, total: number) { return total ? (value / total) * 100 : 0; }
 function shortDate(value: string) { const [, month, day] = value.split("-"); return day ? `${day}/${month}` : value; }
 
-export default function ClientDashboard({ campaign, userName, onOpenResults }: ClientDashboardProps) {
+export default function ClientDashboard({ campaign, userName, onOpenResults, onReady }: ClientDashboardProps) {
   const [storeId, setStoreId] = useState("all");
   const [chartMode, setChartMode] = useState<ChartMode>("appointments");
   const [data, setData] = useState<CampaignDashboardResponse | null>(null);
@@ -24,9 +24,13 @@ export default function ClientDashboard({ campaign, userName, onOpenResults }: C
     onTargetApi.campaignDashboard<CampaignDashboardResponse>(campaign.id, storeId)
       .then((response) => { if (active) { setData(response); setError(""); } })
       .catch((cause: Error) => active && setError(cause.message))
-      .finally(() => active && setLoading(false));
+      .finally(() => {
+        if (!active) return;
+        setLoading(false);
+        onReady?.();
+      });
     return () => { active = false; };
-  }, [campaign.id, storeId]);
+  }, [campaign.id, onReady, storeId]);
 
   const metrics = data?.metrics || emptyMetrics;
   const progress = Math.round(ratio(metrics.worked, metrics.received));
