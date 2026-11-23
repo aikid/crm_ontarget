@@ -42,7 +42,7 @@ export default function Sidebar({ activeScreen, onNavigate, user, onLogout, logg
     ? navItems.filter((item) => item.id === "system")
     : user.role === "SDR"
     ? navItems.filter((item) => item.id === "sdr")
-    : navItems.filter((item) => !item.sdrOnly);
+    : navItems.filter((item) => !item.sdrOnly && !item.adminOnly);
 
   return (
     <>

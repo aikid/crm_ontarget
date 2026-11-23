@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { onTargetApi, type ApiCampaign, type ApiLead, type CampaignDashboardResponse } from "../../lib/ontarget-api";
 import LeadDrawer from "./LeadDrawer";
 
-type ResultsTab = "appointments" | "qualified" | "all";
+type ResultsTab = "appointments" | "qualified";
 type ClientResultsProps = { campaign: ApiCampaign; onReady?: () => void };
 
 function StatusBadge({ value }: { value: string }) {
@@ -40,7 +40,7 @@ export default function ClientResults({ campaign, onReady }: ClientResultsProps)
   useEffect(() => {
     let active = true;
     const timer = window.setTimeout(() => {
-      onTargetApi.campaignLeads(campaign.id, { page, pageSize: 20, category: tab === "all" ? undefined : tab, search, storeId, seller, vehicle, audit })
+      onTargetApi.campaignLeads(campaign.id, { page, pageSize: 20, category: tab, search, storeId, seller, vehicle, audit })
         .then((response) => { if (active) { setLeads(response.data); setPagination(response.pagination); setError(""); } })
         .catch((cause: Error) => active && setError(cause.message))
         .finally(() => active && setLoading(false));
@@ -62,7 +62,7 @@ export default function ClientResults({ campaign, onReady }: ClientResultsProps)
   function clearFilters() { setSearch(""); setStoreId("all"); setSeller("all"); setVehicle("all"); setAudit("all"); setPage(1); }
 
   return <div className="client-page client-results-page">
-    <div className="client-page-intro results-intro"><div><span className="client-eyebrow">RELATÓRIOS DA CAMPANHA</span><h1>Agendamentos e leads</h1><p>Dados exclusivos da campanha {campaign.name}.</p></div></div>
+    <div className="client-page-intro results-intro"><div><span className="client-eyebrow">RELATÓRIOS DA CAMPANHA</span><h1>Agendamentos e leads auditados</h1><p>Dados auditados da campanha {campaign.name}.</p></div></div>
     <section className="results-summary-strip">
       <div><span className="client-kpi-icon green">AG</span><p><strong>{metrics?.appointments || 0}</strong><span>Agendamentos</span></p><small>Campanha atual</small></div>
       <div><span className="client-kpi-icon violet">QL</span><p><strong>{metrics?.qualified || 0}</strong><span>Qualificados</span></p><small>Oportunidades</small></div>
@@ -71,15 +71,15 @@ export default function ClientResults({ campaign, onReady }: ClientResultsProps)
     </section>
 
     <section className="client-panel results-workbench">
-      <div className="results-tabs" role="tablist"><button type="button" className={tab === "appointments" ? "active" : ""} onClick={() => { setTab("appointments"); setPage(1); }}>Agendamentos <span>{metrics?.appointments || 0}</span></button><button type="button" className={tab === "qualified" ? "active" : ""} onClick={() => { setTab("qualified"); setPage(1); }}>Qualificados <span>{metrics?.qualified || 0}</span></button><button type="button" className={tab === "all" ? "active" : ""} onClick={() => { setTab("all"); setPage(1); }}>Todos os leads <span>{metrics?.received || 0}</span></button></div>
+      <div className="results-tabs" role="tablist"><button type="button" className={tab === "appointments" ? "active" : ""} onClick={() => { setTab("appointments"); setPage(1); }}>Agendamentos <span>{dashboard?.audit.appointments || 0}</span></button><button type="button" className={tab === "qualified" ? "active" : ""} onClick={() => { setTab("qualified"); setPage(1); }}>Qualificados <span>{dashboard?.audit.qualified || 0}</span></button></div>
       <div className="results-toolbar"><label className="results-search"><span>⌕</span><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Buscar por nome ou telefone" /></label><div className="result-filter-row">
         <label><span>Loja</span><select value={storeId} onChange={(event) => { setStoreId(event.target.value); setPage(1); }}><option value="all">Todas as lojas</option>{dashboard?.storePerformance.map(({ store }) => <option value={store.id} key={store.id}>{store.shortName}</option>)}</select></label>
         <label><span>Vendedor</span><select value={seller} onChange={(event) => { setSeller(event.target.value); setPage(1); }}><option value="all">Todos</option>{sellers.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label><span>Veículo</span><select value={vehicle} onChange={(event) => { setVehicle(event.target.value); setPage(1); }}><option value="all">Todos</option>{vehicles.map((name) => <option key={name}>{name}</option>)}</select></label>
-        <label><span>Auditoria</span><select value={audit} onChange={(event) => { setAudit(event.target.value); setPage(1); }}><option value="all">Todos</option><option value="confirmed">Confirmado</option><option value="review">Revisão</option><option value="not_audited">Não auditado</option></select></label>
+        <label><span>Auditoria</span><select value={audit} onChange={(event) => { setAudit(event.target.value); setPage(1); }}><option value="all">Todas as auditorias</option><option value="confirmed">Confirmado</option><option value="review">Revisão</option></select></label>
         <button type="button" className="clear-filters-button" onClick={clearFilters}>Limpar</button>
       </div></div>
-      <div className="results-table-meta"><span><strong>{pagination.total}</strong> registros desta campanha</span><span>{loading ? "Atualizando..." : "Dados atualizados"}</span></div>
+      <div className="results-table-meta"><span><strong>{pagination.total}</strong> registros auditados desta campanha</span><span>{loading ? "Atualizando..." : "Dados atualizados"}</span></div>
       <div className="client-table-wrap results-table-wrap">
         {error ? <div className="results-empty"><strong>Não foi possível carregar os leads</strong><p>{error}</p></div> : !loading && !leads.length ? <div className="results-empty"><span>⌕</span><strong>Nenhum resultado encontrado</strong><p>Ajuste ou limpe os filtros.</p><button type="button" onClick={clearFilters}>Limpar filtros</button></div> :
           <table className="client-table results-table"><thead><tr><th>Lead</th><th>Veículo</th>{tab === "appointments" && <><th>Data agendada</th><th>Período</th><th>Vendedor</th></>}{tab === "qualified" && <><th>Tipo</th><th>Data</th></>}<th>Loja</th><th>Auditoria</th><th>Status</th><th /></tr></thead><tbody>{leads.map((lead) => <tr key={lead.id} onClick={() => setSelectedLead(lead)}>

@@ -82,7 +82,9 @@ export default function LoginScreen({ area, unauthorizedUser }: Props) {
     setSubmitting(true);
     setError("");
     try {
-      await login(email, password);
+      const authenticatedUser = await login(email, password);
+      const destination = authenticatedUser.role === "CLIENT" ? "/cliente" : "/";
+      if (window.location.pathname !== destination) window.location.replace(destination);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível entrar.");
     } finally {

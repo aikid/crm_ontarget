@@ -22,7 +22,11 @@ export default function Home() {
   if (loading) return <main className="auth-page app-boot-screen"><LoadingOverlay show title="Validando seu acesso" message="Conectando ao ambiente seguro da SysOn." /></main>;
   if (!user) return <LoginScreen area="internal" />;
   if (!["ADMIN", "GESTOR", "SDR"].includes(user.role)) return <LoginScreen area="internal" unauthorizedUser={user} />;
-  const activeScreen: Screen = user.role === "ADMIN" ? "system" : user.role === "SDR" ? "sdr" : screen;
+  const activeScreen: Screen = user.role === "ADMIN"
+    ? "system"
+    : user.role === "SDR"
+      ? "sdr"
+      : screen === "system" ? "dashboard" : screen;
 
   return (
     <main className={`app-shell screen-${activeScreen} ${navigationOpen ? "navigation-open" : ""}`}>

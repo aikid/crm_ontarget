@@ -16,7 +16,6 @@ import {
 type ResultType = "VOICEMAIL" | "CALLBACK" | "ALREADY_BOUGHT" | "NOT_QUALIFIED" | "LIMBO" | "FUTURE_INTEREST" | "INVALID_NUMBER" | "DIRECTED" | "SCHEDULED";
 type CallPhase = "idle" | "calling" | "active" | "ended";
 type SipRegistration = "connecting" | "ready" | "error";
-const FEEDBACK_DELAY_SECONDS = 10;
 
 const resultOptions: Array<{ id: ResultType; label: string; shortcut: string; detail: string }> = [
   { id: "VOICEMAIL", label: "Caixa Postal", shortcut: "1", detail: "Iniciar nova tentativa" },
@@ -65,8 +64,15 @@ function publicCallError(cause: unknown, fallback: string) {
   return /Asterisk|OverTele|Onvox|3CX|SIP|WebSocket|ARI/i.test(cause.message) ? fallback : cause.message;
 }
 
-function usesContactDetails(result: ResultType | null) {
-  return Boolean(result && !["VOICEMAIL", "CALLBACK"].includes(result));
+const resultsWithVehicle = new Set<ResultType>(["FUTURE_INTEREST", "DIRECTED", "SCHEDULED"]);
+const resultsWithNotes = new Set<ResultType>(["ALREADY_BOUGHT", "NOT_QUALIFIED", "LIMBO", "FUTURE_INTEREST", "DIRECTED", "SCHEDULED"]);
+
+function usesVehicle(result: ResultType | null) {
+  return Boolean(result && resultsWithVehicle.has(result));
+}
+
+function usesNotes(result: ResultType | null) {
+  return Boolean(result && resultsWithNotes.has(result));
 }
 
 export default function SdrScreen() {
@@ -92,7 +98,6 @@ export default function SdrScreen() {
   const [callPhase, setCallPhase] = useState<CallPhase>("idle");
   const [callSeconds, setCallSeconds] = useState(0);
   const [callId, setCallId] = useState<string | null>(null);
-  const [feedbackUnlockAt, setFeedbackUnlockAt] = useState<number | null>(null);
   const [sipRegistration, setSipRegistration] = useState<SipRegistration>("connecting");
   const sipClientRef = useRef<AsteriskSipClient | null>(null);
   const ringbackToneRef = useRef<RingbackTone | null>(null);
@@ -108,12 +113,6 @@ export default function SdrScreen() {
     () => reservationLabel(lead?.reservation?.reservedUntil, clock),
     [clock, lead?.reservation?.reservedUntil],
   );
-  const feedbackWaitSeconds = useMemo(() => {
-    void clock;
-    if (!feedbackUnlockAt) return 0;
-    return Math.max(0, Math.ceil((feedbackUnlockAt - Date.now()) / 1_000));
-  }, [clock, feedbackUnlockAt]);
-
   const refreshSideData = useCallback(async (selectedCampaignId: string) => {
     if (!userId) return;
     const [summary, callbackResponse] = await Promise.all([
@@ -140,7 +139,6 @@ export default function SdrScreen() {
       setCallPhase("idle");
       setCallSeconds(0);
       setCallId(null);
-      setFeedbackUnlockAt(null);
       callIdRef.current = null;
       setSelectedResult(null);
       setVehicleInterest("");
@@ -261,7 +259,7 @@ export default function SdrScreen() {
 
   useEffect(() => {
     function shortcuts(event: KeyboardEvent) {
-      if (callPhase !== "ended" || feedbackWaitSeconds > 0) return;
+      if (callPhase !== "ended") return;
       const target = event.target as HTMLElement;
       if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
       const option = resultOptions.find((item) => item.shortcut === event.key);
@@ -269,7 +267,7 @@ export default function SdrScreen() {
     }
     window.addEventListener("keydown", shortcuts);
     return () => window.removeEventListener("keydown", shortcuts);
-  }, [callPhase, feedbackWaitSeconds]);
+  }, [callPhase]);
 
   async function changeCampaign(nextCampaignId: string) {
     if (!nextCampaignId || nextCampaignId === campaignId) return;
@@ -290,7 +288,6 @@ export default function SdrScreen() {
       setCallPhase("idle");
       setCallSeconds(0);
       setCallId(null);
-      setFeedbackUnlockAt(null);
       callIdRef.current = null;
       setSelectedResult(null);
       setVehicleInterest("");
@@ -308,7 +305,6 @@ export default function SdrScreen() {
     setToast("");
     setCallPhase("calling");
     setCallSeconds(0);
-    setFeedbackUnlockAt(null);
     const ringbackTone = new RingbackTone();
     ringbackToneRef.current = ringbackTone;
     ringbackTone.start();
@@ -346,7 +342,6 @@ export default function SdrScreen() {
       await sipClient.endCall().catch(() => undefined);
       if (createdCallId) await onTargetApi.endAsteriskCall(createdCallId).catch(() => undefined);
       setCallId(null);
-      setFeedbackUnlockAt(null);
       callIdRef.current = null;
       setCallPhase("idle");
       if (cause instanceof Error && /ramal|SIP|Asterisk|WebSocket/i.test(cause.message)) setSipRegistration("error");
@@ -361,7 +356,6 @@ export default function SdrScreen() {
     ringbackToneRef.current = null;
     void sipClientRef.current?.endCall();
     callIdRef.current = null;
-    setFeedbackUnlockAt((current) => current ?? Date.now() + FEEDBACK_DELAY_SECONDS * 1_000);
     setCallPhase("ended");
   }
 
@@ -407,15 +401,14 @@ export default function SdrScreen() {
   }
 
   async function saveOutcome() {
-    if (!lead || !selectedResult || saving || feedbackWaitSeconds > 0) return;
-    const includeContactDetails = usesContactDetails(selectedResult);
+    if (!lead || !selectedResult || saving) return;
     setSaving(true);
     setError("");
     try {
       await onTargetApi.saveOutcome(lead.id, {
         outcome: selectedResult,
-        vehicle: includeContactDetails ? vehicleInterest.trim() || undefined : undefined,
-        notes: includeContactDetails ? notes || undefined : undefined,
+        vehicle: usesVehicle(selectedResult) ? vehicleInterest.trim() || undefined : undefined,
+        notes: usesNotes(selectedResult) ? notes || undefined : undefined,
         ...(selectedResult === "CALLBACK" ? { callback: { scheduledAt: new Date(callbackAt).toISOString() } } : {}),
         ...(callId ? { callId, durationSec: callSeconds } : {}),
       });
@@ -424,7 +417,6 @@ export default function SdrScreen() {
       setCallPhase("idle");
       setCallSeconds(0);
       setCallId(null);
-      setFeedbackUnlockAt(null);
       callIdRef.current = null;
       await refreshSideData(campaignId);
       await claimNext(campaignId);
@@ -443,7 +435,6 @@ export default function SdrScreen() {
       setCallPhase("idle");
       setCallSeconds(0);
       setCallId(null);
-      setFeedbackUnlockAt(null);
       callIdRef.current = null;
       setQueueEmpty(false);
       setSelectedResult(null);
@@ -532,17 +523,15 @@ export default function SdrScreen() {
               </article>
 
               {callPhase === "ended" && <article className="result-card">
-                <div className="result-heading"><div><span className="section-kicker">REGISTRO DA TENTATIVA</span><h2>Qual foi o resultado do contato?</h2><p>{feedbackWaitSeconds > 0 ? "Aguarde o contador para registrar o resultado." : "O registro libera o lead e carrega o próximo item da fila."}</p></div><div className="result-heading-status">{feedbackWaitSeconds > 0 && <span className="feedback-countdown" role="status" aria-live="polite"><strong>{feedbackWaitSeconds}s</strong><small>para liberar</small></span>}<span className="required-note">Obrigatório</span></div></div>
-                <div className="result-options">{resultOptions.map((option) => <button type="button" key={option.id} disabled={feedbackWaitSeconds > 0} className={selectedResult === option.id ? "selected" : ""} onClick={() => { setSelectedResult(option.id); if (!usesContactDetails(option.id)) { setVehicleInterest(""); setNotes(""); } }}><span className="result-radio">{selectedResult === option.id ? "✓" : ""}</span><div><strong>{option.label}</strong><small>{option.detail}</small></div><kbd>{option.shortcut}</kbd></button>)}</div>
+                <div className="result-heading"><div><span className="section-kicker">REGISTRO DA TENTATIVA</span><h2>Qual foi o resultado do contato?</h2><p>O registro libera o lead e carrega o próximo item da fila.</p></div><div className="result-heading-status"><span className="required-note">Obrigatório</span></div></div>
+                <div className="result-options">{resultOptions.map((option) => <button type="button" key={option.id} className={selectedResult === option.id ? "selected" : ""} onClick={() => { setSelectedResult(option.id); if (!usesVehicle(option.id)) setVehicleInterest(""); if (!usesNotes(option.id)) setNotes(""); }}><span className="result-radio">{selectedResult === option.id ? "✓" : ""}</span><div><strong>{option.label}</strong><small>{option.detail}</small></div><kbd>{option.shortcut}</kbd></button>)}</div>
                 {selectedResult && <div className="conditional-form">
                   {selectedResult === "CALLBACK" && <div className="form-grid callback-form"><label className="form-field"><span>Data e horário do retorno <b>*</b></span><input type="datetime-local" value={callbackAt} min={localDateTimeInput(new Date())} onChange={(event) => setCallbackAt(event.target.value)} /></label></div>}
                   {selectedResult === "VOICEMAIL" && <div className="no-answer-note"><div><span>TENTATIVA ATUAL</span><strong>{attemptNumber} de 3</strong></div><div><strong>{attemptNumber === 3 ? "Última tentativa" : "Lead voltará à fila"}</strong><p>{attemptNumber === 3 ? "Ao salvar, o limite será atingido e o lead será encerrado." : "Uma nova tentativa poderá ser iniciada pela fila."}</p></div></div>}
                   {selectedResult === "INVALID_NUMBER" && <div className="invalid-note"><span>!</span><div><strong>O número será marcado como inexistente.</strong><p>O lead será encerrado e não retornará à fila operacional.</p></div></div>}
-                  {usesContactDetails(selectedResult) && <>
-                    <div className="form-grid"><label className="form-field full"><span>Veículo de interesse</span><input type="text" value={vehicleInterest} maxLength={120} onChange={(event) => setVehicleInterest(event.target.value)} placeholder="Informe o veículo mencionado pelo cliente" /></label></div>
-                    <div className="form-grid"><label className="form-field full"><span>Observações</span><textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} placeholder="Registre apenas informações úteis para o histórico do lead." /></label></div>
-                  </>}
-                  <div className="form-footer"><span>Registre o desfecho do contato</span><button className="primary-button save-button" type="button" disabled={feedbackWaitSeconds > 0 || saving || (selectedResult === "CALLBACK" && !callbackAt)} onClick={() => void saveOutcome()}>{saving ? "Salvando…" : "Salvar e próximo lead →"}</button></div>
+                  {usesVehicle(selectedResult) && <div className="form-grid"><label className="form-field full"><span>Veículo de interesse</span><input type="text" value={vehicleInterest} maxLength={120} onChange={(event) => setVehicleInterest(event.target.value)} placeholder="Informe o veículo mencionado pelo cliente" /></label></div>}
+                  {usesNotes(selectedResult) && <div className="form-grid"><label className="form-field full"><span>Observações</span><textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} placeholder="Registre apenas informações úteis para o histórico do lead." /></label></div>}
+                  <div className="form-footer"><span>Registre o desfecho do contato</span><button className="primary-button save-button" type="button" disabled={saving || (selectedResult === "CALLBACK" && !callbackAt)} onClick={() => void saveOutcome()}>{saving ? "Salvando…" : "Salvar e próximo lead →"}</button></div>
                 </div>}
               </article>}
             </>

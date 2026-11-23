@@ -63,7 +63,7 @@ export type CampaignDashboardResponse = {
     conversion: string;
   }>;
   callResults: Array<{ code: string; label: string; value: number; color: string }>;
-  audit: { registered: number; audited: number; confirmed: number; divergences: number; validationRate: number };
+  audit: { registered: number; audited: number; appointments: number; qualified: number; confirmed: number; divergences: number; validationRate: number };
 };
 
 export type AdminClient = {
@@ -282,10 +282,40 @@ export type OperationDashboard = {
     name: string;
     initials: string;
     attempts: number;
+    worked: number;
     contacts: number;
     qualified: number;
     conversion: number;
   }>;
+  analytics: {
+    baseTotal: number;
+    noAttempt: number;
+    scheduled: number;
+    directed: number;
+    callbacks: { expected: number; completed: number; overdue: number };
+    daily: Array<{
+      key: string;
+      label: string;
+      attempts: number;
+      worked: number;
+      contacts: number;
+      positives: number;
+      contactRate: number;
+      conversion: number;
+      coverage: number;
+    }>;
+    hourly: Array<{ label: string; attempts: number; contactRate: number }>;
+    attemptSequence: Array<{ sequence: number; label: string; attempts: number; contactRate: number }>;
+    campaigns: Array<{
+      id: string;
+      name: string;
+      attempts: number;
+      worked: number;
+      contacts: number;
+      positive: number;
+      conversion: number;
+    }>;
+  };
 };
 
 function queryString(query?: Record<string, QueryValue>) {

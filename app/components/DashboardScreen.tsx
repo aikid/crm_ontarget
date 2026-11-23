@@ -3,168 +3,82 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./auth/AuthProvider";
 import LoadingOverlay from "./ui/LoadingOverlay";
-import {
-  onTargetApi,
-  type AdminCampaign,
-  type AdminClient,
-  type AdminStore,
-  type AdminUser,
-  type OperationDashboard,
-} from "../lib/ontarget-api";
+import { onTargetApi, type AdminCampaign, type AdminClient, type AdminStore, type AdminUser, type OperationDashboard } from "../lib/ontarget-api";
 
-type DashboardScreenProps = { onOpenSdr: () => void; canOpenSdr: boolean };
+type Props = { onOpenSdr: () => void; canOpenSdr: boolean };
 type Period = "today" | "7" | "30" | "90";
+type Series = { label: string; color: string; values: number[] };
+const nf = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
+const pf = (value: number) => `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value)}%`;
+const localKey = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+function periodDates(period: Period) { const end = new Date(); const start = new Date(end); start.setDate(start.getDate() - (period === "today" ? 0 : Number(period) - 1)); return { dateFrom: localKey(start), dateTo: localKey(end) }; }
 
-function dateKey(date: Date) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
+function SelectFilter({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }> }) {
+  return <label className="filter-field"><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
 }
 
-function periodDates(period: Period) {
-  const end = new Date();
-  const start = new Date(end);
-  const days = period === "today" ? 0 : Number(period) - 1;
-  start.setDate(start.getDate() - days);
-  return { dateFrom: dateKey(start), dateTo: dateKey(end) };
+function Metric({ label, value, detail, note, tone, progress }: { label: string; value: string; detail: string; note?: string; tone: string; progress?: number }) {
+  return <article className={`indicator-metric-card tone-${tone}`}><div className="indicator-card-label"><span>{label}</span><i /></div><strong>{value}</strong><p>{detail}</p>{progress !== undefined && <div className="indicator-progress"><span style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} /></div>}{note && <small>{note}</small>}</article>;
 }
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("pt-BR").format(value);
+function LineChart({ title, subtitle, labels, series, unit = "", note }: { title: string; subtitle: string; labels: string[]; series: Series[]; unit?: string; note?: string }) {
+  const w = 760, h = 250, l = 48, r = 18, t = 24, b = 42, cw = w - l - r, ch = h - t - b;
+  const max = Math.max(1, ...series.flatMap((item) => item.values));
+  const labelStep = Math.max(1, Math.ceil(labels.length / 10));
+  const x = (i: number) => l + (labels.length < 2 ? cw / 2 : i / (labels.length - 1) * cw);
+  const y = (v: number) => t + ch - v / max * ch;
+  return <article className="indicator-panel"><div className="indicator-panel-heading"><div><h3>{title}</h3><p>{subtitle}</p></div></div><div className="indicator-chart-scroll"><svg viewBox={`0 0 ${w} ${h}`} className="indicator-line-chart" role="img" aria-label={title}>
+    {[0, .25, .5, .75, 1].map((ratio) => <g key={ratio}><line x1={l} y1={t + ch - ratio * ch} x2={w - r} y2={t + ch - ratio * ch} /><text x={l - 9} y={t + ch - ratio * ch + 4}>{Math.round(max * ratio)}{unit}</text></g>)}
+    {series.map((item) => <g key={item.label}><polyline points={item.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")} fill="none" stroke={item.color} strokeWidth="3" strokeLinejoin="round" />{item.values.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r="3" fill="#fff" stroke={item.color} strokeWidth="2"><title>{labels[i]}: {v}{unit}</title></circle>)}</g>)}
+    {labels.map((label, i) => (i % labelStep === 0 || i === labels.length - 1) ? <text key={`${label}-${i}`} className="indicator-axis-label" x={x(i)} y={h - 12} textAnchor="middle">{label}</text> : null)}
+  </svg></div><div className="indicator-legend">{series.map((item) => <span key={item.label}><i style={{ background: item.color }} />{item.label}</span>)}</div>{note && <div className="indicator-panel-note">{note}</div>}</article>;
 }
 
-function SelectFilter({ label, value, onChange, options }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return <label className="filter-field"><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>{options.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>;
+function BarChart({ title, subtitle, labels, values, color = "#ef233c", unit = "" }: { title: string; subtitle: string; labels: string[]; values: number[]; color?: string; unit?: string }) {
+  const max = Math.max(1, ...values);
+  return <article className="indicator-panel"><div className="indicator-panel-heading"><div><h3>{title}</h3><p>{subtitle}</p></div></div><div className="indicator-bars">{values.map((value, index) => <div className="indicator-bar-column" key={`${labels[index]}-${index}`} title={`${labels[index]}: ${value}${unit}`}><span>{value}{unit}</span><div><i style={{ height: `${Math.max(2, value / max * 100)}%`, background: color }} /></div><small>{labels[index]}</small></div>)}</div></article>;
 }
 
-export default function DashboardScreen({ onOpenSdr, canOpenSdr }: DashboardScreenProps) {
+export default function DashboardScreen({ onOpenSdr, canOpenSdr }: Props) {
   const { user } = useAuth();
-  const [period, setPeriod] = useState<Period>("90");
-  const [clientId, setClientId] = useState("all");
-  const [storeId, setStoreId] = useState("all");
-  const [campaignId, setCampaignId] = useState("all");
-  const [sdrId, setSdrId] = useState("all");
-  const [clients, setClients] = useState<AdminClient[]>([]);
-  const [stores, setStores] = useState<AdminStore[]>([]);
-  const [campaigns, setCampaigns] = useState<AdminCampaign[]>([]);
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [data, setData] = useState<OperationDashboard | null>(null);
-  const [sdrSummary, setSdrSummary] = useState({ worked: 0, contacts: 0, qualified: 0, callbacks: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [period, setPeriod] = useState<Period>("30"), [clientId, setClientId] = useState("all"), [storeId, setStoreId] = useState("all"), [campaignId, setCampaignId] = useState("all"), [sdrId, setSdrId] = useState("all");
+  const [clients, setClients] = useState<AdminClient[]>([]), [stores, setStores] = useState<AdminStore[]>([]), [campaigns, setCampaigns] = useState<AdminCampaign[]>([]), [users, setUsers] = useState<AdminUser[]>([]);
+  const [data, setData] = useState<OperationDashboard | null>(null), [summary, setSummary] = useState({ worked: 0, contacts: 0, qualified: 0, callbacks: 0 }), [mode, setMode] = useState<"sdr" | "campaign">("sdr"), [loading, setLoading] = useState(true), [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
-    if (user.role === "SDR") {
-      void onTargetApi.sdrSummary(user.id).then(setSdrSummary).catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar o resumo."));
-      return;
-    }
-    void Promise.all([onTargetApi.admin.clients(), onTargetApi.admin.stores(), onTargetApi.admin.campaigns(), onTargetApi.admin.users()])
-      .then(([clientResponse, storeResponse, campaignResponse, userResponse]) => {
-        setClients(clientResponse.data);
-        setStores(storeResponse.data);
-        setCampaigns(campaignResponse.data);
-        setUsers(userResponse.data.filter((item) => item.role === "SDR"));
-      })
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar os filtros."));
-  }, [user]);
+  useEffect(() => { if (!user) return; if (user.role === "SDR") { void onTargetApi.sdrSummary(user.id).then(setSummary).catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar o resumo.")); return; } void Promise.all([onTargetApi.admin.clients(), onTargetApi.admin.stores(), onTargetApi.admin.campaigns(), onTargetApi.admin.users()]).then(([c, s, p, u]) => { setClients(c.data); setStores(s.data); setCampaigns(p.data); setUsers(u.data.filter((item) => item.role === "SDR")); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar os filtros.")); }, [user]);
+  const load = useCallback(async () => { if (user?.role !== "GESTOR") return; setLoading(true); setError(""); try { setData(await onTargetApi.operationDashboard({ ...periodDates(period), clientId, storeId, campaignId, sdrId })); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível carregar os indicadores."); } finally { setLoading(false); } }, [campaignId, clientId, period, sdrId, storeId, user?.role]);
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
 
-  const loadDashboard = useCallback(async () => {
-    if (user?.role !== "GESTOR") return;
-    setLoading(true);
-    setError("");
-    try {
-      setData(await onTargetApi.operationDashboard({ ...periodDates(period), clientId, storeId, campaignId, sdrId }));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível carregar o dashboard.");
-    } finally {
-      setLoading(false);
-    }
-  }, [campaignId, clientId, period, sdrId, storeId, user?.role]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => void loadDashboard(), 0);
-    return () => window.clearTimeout(timer);
-  }, [loadDashboard]);
-
-  const availableStores = stores.filter((store) => clientId === "all" || store.clientId === clientId);
-  const availableCampaigns = campaigns.filter((campaign) => (clientId === "all" || campaign.clientId === clientId) && (storeId === "all" || campaign.storeId === storeId));
-  const maxActivity = Math.max(1, ...(data?.activity.map((item) => item.value) || [1]));
+  const availableStores = stores.filter((item) => clientId === "all" || item.clientId === clientId);
+  const availableCampaigns = campaigns.filter((item) => (clientId === "all" || item.clientId === clientId) && (storeId === "all" || item.storeId === storeId));
   const outcomeTotal = data?.outcomes.reduce((total, item) => total + item.value, 0) || 0;
-  const donutBackground = useMemo(() => {
-    if (!data || !outcomeTotal) return "#eef0f4";
-    let offset = 0;
-    const segments = data.outcomes.filter((item) => item.value).map((item) => {
-      const start = offset;
-      offset += (item.value / outcomeTotal) * 100;
-      return `${item.color} ${start}% ${offset}%`;
-    });
-    return `conic-gradient(${segments.join(", ")})`;
-  }, [data, outcomeTotal]);
+  const donut = useMemo(() => { if (!data || !outcomeTotal) return "#eef0f4"; let offset = 0; return `conic-gradient(${data.outcomes.filter((item) => item.value).map((item) => { const start = offset; offset += item.value / outcomeTotal * 100; return `${item.color} ${start}% ${offset}%`; }).join(",")})`; }, [data, outcomeTotal]);
 
-  if (user?.role === "SDR") {
-    return <div className="screen dashboard-screen">
-      <header className="topbar"><div><div className="eyebrow-row"><span className="eyebrow">MINHA OPERAÇÃO</span><span className="live-badge"><span /> ONLINE</span></div><h1>Olá, {user.name.split(" ")[0]}</h1><p>Seu resumo de tentativas registradas hoje.</p></div></header>
-      {error && <div className="admin-message error">{error}</div>}
-      <section className="sdr-welcome-hero">
-        <div className="sdr-welcome-copy"><span>FILA INTELIGENTE</span><h2>Transforme o próximo contato em oportunidade.</h2><p>A SysOn reserva um lead por vez para você trabalhar com foco e segurança.</p>{canOpenSdr && <button className="dashboard-hero-button" type="button" onClick={onOpenSdr}>Iniciar operação SDR <span>→</span></button>}</div>
-        <div className="sdr-welcome-visual" aria-hidden="true"><span className="signal-ring ring-one" /><span className="signal-ring ring-two" /><strong>OT</strong><small>Fila online</small></div>
-      </section>
-      <section className="kpi-grid sdr-home-kpis">
-        {[{ label: "Tentativas", value: sdrSummary.worked, icon: "↗", tone: "red" }, { label: "Contatos", value: sdrSummary.contacts, icon: "✓", tone: "green" }, { label: "Qualificados", value: sdrSummary.qualified, icon: "★", tone: "amber" }, { label: "Retornos", value: sdrSummary.callbacks, icon: "↻", tone: "violet" }].map((item) => <article className={`kpi-card kpi-tone-${item.tone}`} key={item.label}><div className="kpi-heading"><span>{item.label}</span><i>{item.icon}</i></div><strong>{item.value}</strong><span className="kpi-detail neutral">Hoje</span></article>)}
-      </section>
-    </div>;
-  }
+  if (user?.role === "SDR") return <div className="screen dashboard-screen"><header className="topbar"><div><span className="eyebrow">MINHA OPERAÇÃO</span><h1>Olá, {user.name.split(" ")[0]}</h1><p>Seu resumo de tentativas registradas hoje.</p></div></header>{error && <div className="admin-message error">{error}</div>}<section className="sdr-welcome-hero"><div className="sdr-welcome-copy"><span>FILA INTELIGENTE</span><h2>Transforme o próximo contato em oportunidade.</h2><p>A SysOn reserva um lead por vez para você trabalhar com foco e segurança.</p>{canOpenSdr && <button className="dashboard-hero-button" onClick={onOpenSdr}>Iniciar operação SDR →</button>}</div></section><section className="indicator-secondary-grid">{[{ label: "Tentativas", value: summary.worked }, { label: "Contatos", value: summary.contacts }, { label: "Qualificados", value: summary.qualified }, { label: "Retornos", value: summary.callbacks }].map((item) => <Metric key={item.label} tone="red" label={item.label} value={nf(item.value)} detail="Hoje" />)}</section></div>;
 
-  const kpis = data ? [
-    { label: "Leads trabalhados", value: formatNumber(data.kpis.worked), detail: "Leads únicos no período" },
-    { label: "Tentativas", value: formatNumber(data.kpis.attempts), detail: "Resultados registrados" },
-    { label: "Contatos realizados", value: formatNumber(data.kpis.contacts), detail: `Taxa de contato ${data.kpis.contactRate}%` },
-    { label: "Qualificados", value: formatNumber(data.kpis.qualified), detail: "Oportunidades confirmadas" },
-    { label: "Retornos", value: formatNumber(data.kpis.callbacks), detail: "Agendados no período" },
-    { label: "Conversão", value: `${data.kpis.conversion}%`, detail: "Qualificados por contato" },
-  ] : [];
-
-  return <div className="screen dashboard-screen">
-    <LoadingOverlay show={loading} title="Atualizando dashboard" message="Consolidando os indicadores da operação." />
-    <header className="topbar"><div><div className="eyebrow-row"><span className="eyebrow">GESTÃO DA OPERAÇÃO</span><span className="live-badge"><span /> DADOS REAIS</span></div><h1>Visão geral</h1><p>Acompanhe produtividade e resultados registrados pela equipe.</p></div><div className="topbar-actions"><button className="period-button" type="button" onClick={() => void loadDashboard()}>Atualizar dados ↻</button></div></header>
-
-    <section className="filters-panel dashboard-real-filters" aria-label="Filtros do dashboard">
-      <SelectFilter label="Período" value={period} onChange={(value) => setPeriod(value as Period)} options={[{ value: "today", label: "Hoje" }, { value: "7", label: "Últimos 7 dias" }, { value: "30", label: "Últimos 30 dias" }, { value: "90", label: "Últimos 90 dias" }]} />
-      <SelectFilter label="Cliente" value={clientId} onChange={(value) => { setClientId(value); setStoreId("all"); setCampaignId("all"); }} options={[{ value: "all", label: "Todos" }, ...clients.filter((item) => item.active).map((item) => ({ value: item.id, label: item.name }))]} />
-      <SelectFilter label="Campanha" value={campaignId} onChange={setCampaignId} options={[{ value: "all", label: "Todas" }, ...availableCampaigns.map((item) => ({ value: item.id, label: item.name }))]} />
-      <SelectFilter label="Loja" value={storeId} onChange={(value) => { setStoreId(value); setCampaignId("all"); }} options={[{ value: "all", label: "Todas" }, ...availableStores.filter((item) => item.active).map((item) => ({ value: item.id, label: item.shortName }))]} />
-      <SelectFilter label="SDR" value={sdrId} onChange={setSdrId} options={[{ value: "all", label: "Todos" }, ...users.filter((item) => item.active).map((item) => ({ value: item.id, label: item.name }))]} />
-    </section>
-
-    {error && <div className="admin-message error">{error}</div>}
+  const daily = data?.analytics.daily || [], hourly = data?.analytics.hourly || [];
+  const coverage = data?.analytics.baseTotal ? data.kpis.worked / data.analytics.baseTotal * 100 : 0;
+  const rows = mode === "sdr" ? (data?.ranking || []).map((item) => ({ ...item, positive: item.qualified })) : (data?.analytics.campaigns || []);
+  return <div className="screen dashboard-screen indicators-screen"><LoadingOverlay show={loading} title="Atualizando indicadores" message="Consolidando esforço, cobertura e resultados da operação." />
+    <header className="topbar indicator-topbar"><div><div className="eyebrow-row"><span className="eyebrow">GESTÃO DA OPERAÇÃO</span><span className="live-badge"><span /> DADOS REAIS</span></div><h1>SysOn</h1><p>Gestão da operação e inteligência comercial.</p></div><div className="topbar-actions"><button className="period-button" onClick={() => void load()}>↻ Atualizar dados</button></div></header>
+    <div className="indicator-tabs"><button className="active">▥ Indicadores Operacionais</button><button disabled>✦ Inteligência Operacional <span>Fase 2</span></button></div>
+    <section className="filters-panel dashboard-real-filters indicator-filter-panel"><div className="indicator-filter-title"><strong>◉ Visão do período</strong><span>Filtros aplicados aos dados reais</span></div><div className="indicator-filter-fields">
+      <SelectFilter label="Período" value={period} onChange={(v) => setPeriod(v as Period)} options={[{ value: "today", label: "Hoje" }, { value: "7", label: "Últimos 7 dias" }, { value: "30", label: "Últimos 30 dias" }, { value: "90", label: "Últimos 90 dias" }]} />
+      <SelectFilter label="Cliente" value={clientId} onChange={(v) => { setClientId(v); setStoreId("all"); setCampaignId("all"); }} options={[{ value: "all", label: "Todos os clientes" }, ...clients.filter((i) => i.active).map((i) => ({ value: i.id, label: i.name }))]} />
+      <SelectFilter label="Campanha / ação" value={campaignId} onChange={setCampaignId} options={[{ value: "all", label: "Todas as campanhas" }, ...availableCampaigns.map((i) => ({ value: i.id, label: i.name }))]} />
+      <SelectFilter label="Loja" value={storeId} onChange={(v) => { setStoreId(v); setCampaignId("all"); }} options={[{ value: "all", label: "Todas as lojas" }, ...availableStores.filter((i) => i.active).map((i) => ({ value: i.id, label: i.shortName }))]} />
+      <SelectFilter label="SDR" value={sdrId} onChange={setSdrId} options={[{ value: "all", label: "Todos os SDRs" }, ...users.filter((i) => i.active).map((i) => ({ value: i.id, label: i.name }))]} />
+    </div></section>{error && <div className="admin-message error">{error}</div>}
     {!data ? <div className="dashboard-loading">Preparando indicadores…</div> : <>
-      <section className="dashboard-overview-grid">
-        <article className="dashboard-highlight-card">
-          <div className="dashboard-highlight-heading"><div><span>EFICIÊNCIA COMERCIAL</span><h2>Ritmo da operação</h2></div><span className="dashboard-status-pill"><i /> Operação ativa</span></div>
-          <div className="dashboard-highlight-main"><strong>{data.kpis.contactRate}%</strong><span>taxa de contato</span></div>
-          <div className="dashboard-progress-row"><span><b>Contato</b><small>{data.kpis.contacts} de {data.kpis.worked} leads</small></span><div><i style={{ width: `${Math.min(100, data.kpis.contactRate)}%` }} /></div></div>
-          <div className="dashboard-progress-row"><span><b>Conversão</b><small>{data.kpis.qualified} oportunidades</small></span><div><i style={{ width: `${Math.min(100, data.kpis.conversion)}%` }} /></div></div>
-        </article>
-        <div className="dashboard-live-grid" aria-label="Operação em tempo real">
-          {[{ label: "Leads na fila", value: data.live.pending, icon: "F", tone: "neutral" }, { label: "SDRs ativos", value: data.live.activeSdrs, icon: "A", tone: "success" }, { label: "Reservados agora", value: data.live.reserved, icon: "R", tone: "primary" }, { label: "Retornos", value: data.live.callbacks, icon: "↻", tone: "warning" }].map((item) => <article key={item.label}><span className={`pulse-symbol ${item.tone}`}>{item.icon}</span><div><strong>{item.value}</strong><span>{item.label}</span></div></article>)}
-        </div>
-      </section>
-
-      <div className="dashboard-section-heading"><div><span>DESEMPENHO</span><h2>Indicadores do período</h2></div><p>Visão consolidada dos resultados selecionados nos filtros.</p></div>
-      <section className="kpi-grid dashboard-kpi-grid" aria-label="Indicadores principais">{kpis.map((kpi, index) => <article className={`kpi-card kpi-tone-${["red", "blue", "green", "amber", "violet", "dark"][index]}`} key={kpi.label}><div className="kpi-heading"><span>{kpi.label}</span><i>{["L", "↗", "✓", "★", "↻", "%"][index]}</i></div><strong>{kpi.value}</strong><span className="kpi-detail neutral">{kpi.detail}</span></article>)}</section>
-
-      <div className="dashboard-section-heading compact"><div><span>ANÁLISE</span><h2>Ritmo e resultados</h2></div></div>
-      <section className="analytics-grid">
-        <article className="panel calls-chart-panel"><div className="panel-heading"><div><h2>Atividade operacional</h2><p>Tentativas registradas ao longo do período</p></div><div className="chart-total"><strong>{data?.kpis.attempts || 0}</strong><span>tentativas</span></div></div><div className="bar-chart"><div className="chart-grid-lines"><span>{maxActivity}</span><span>{Math.round(maxActivity / 2)}</span><span>0</span></div><div className="bars dashboard-bars">{data?.activity.map((item) => <div className="bar-column" key={item.label}><span className="bar-value">{item.value}</span><div className="bar" style={{ height: `${Math.max(3, (item.value / maxActivity) * 100)}%` }} /><small>{item.label}</small></div>)}</div></div></article>
-        <article className="panel result-panel"><div className="panel-heading"><div><h2>Resultados das tentativas</h2><p>Distribuição dos registros finalizados</p></div></div><div className="result-content"><div className="donut-chart" style={{ background: donutBackground }}><div className="donut-center"><strong>{outcomeTotal}</strong><span>resultados</span></div></div><div className="legend-list">{data?.outcomes.map((item) => <div key={item.code}><span className="legend-color" style={{ background: item.color }} /><span>{item.label}</span><strong>{item.value}</strong></div>)}</div></div></article>
-      </section>
-
-      <section className="bottom-grid dashboard-ranking-grid"><article className="panel ranking-panel"><div className="panel-heading"><div><span className="panel-kicker">TIME COMERCIAL</span><h2>Desempenho SDR</h2><p>Resultados individuais no período selecionado</p></div><span className="ranking-medal">★</span></div><div className="table-wrap"><table><thead><tr><th>SDR</th><th>Tentativas</th><th>Contatos</th><th>Qualificados</th><th>Conversão</th></tr></thead><tbody>{data?.ranking.map((person, index) => <tr key={person.id}><td><span className={`rank-number ${index === 0 ? "top" : ""}`}>{index + 1}</span><span className="avatar avatar-soft">{person.initials}</span><strong>{person.name}</strong></td><td>{person.attempts}</td><td>{person.contacts}</td><td>{person.qualified}</td><td><span className="conversion-pill">{person.conversion}%</span></td></tr>)}</tbody></table></div></article></section>
-    </>}
-  </div>;
+      <div className="indicator-section-title"><div><span>PRIORIDADE 1</span><h2>O essencial da operação</h2></div><p>Acompanhe o esforço da equipe e a transformação de contatos em resultados.</p></div>
+      <section className="dashboard-overview-grid indicator-priority-grid"><Metric tone="red" label="Taxa de contato" value={pf(data.kpis.contactRate)} detail={`${nf(data.kpis.contacts)} contatados / ${nf(data.kpis.worked)} trabalhados`} note="Contato efetivo com a base" progress={data.kpis.contactRate} /><Metric tone="green" label="Conversão entre contatados" value={pf(data.kpis.conversion)} detail={`${nf(data.kpis.qualified)} positivos / ${nf(data.kpis.contacts)} contatados`} note="Contatos que geram oportunidades" progress={data.kpis.conversion} /><Metric tone="blue" label="Resultados positivos" value={nf(data.kpis.qualified)} detail="Agendados + direcionados, sem duplicidade" note={`${nf(data.analytics.scheduled)} agendados · ${nf(data.analytics.directed)} direcionados`} /><Metric tone="violet" label="Cobertura da base" value={pf(coverage)} detail={`${nf(data.kpis.worked)} trabalhados / ${nf(data.analytics.baseTotal)} na base`} note={`${nf(data.analytics.noAttempt)} leads ainda sem tentativa`} progress={coverage} /></section>
+      <section className="indicator-two-column"><LineChart title="Evolução diária da operação" subtitle="Tentativas, primeiros contatos e resultados positivos por dia" labels={daily.map((i) => i.label)} series={[{ label: "Tentativas", color: "#ef233c", values: daily.map((i) => i.attempts) }, { label: "Contatados", color: "#5d8df7", values: daily.map((i) => i.contacts) }, { label: "Positivos", color: "#28a87a", values: daily.map((i) => i.positives) }]} note={`${nf(data.kpis.attempts)} tentativas · ${nf(data.kpis.contacts)} contatados · ${nf(data.kpis.qualified)} positivos.`} /><LineChart title="Contato e conversão ao longo do tempo" subtitle="Percentuais diários sobre os leads trabalhados" labels={daily.map((i) => i.label)} unit="%" series={[{ label: "Taxa de contato", color: "#5d8df7", values: daily.map((i) => i.contactRate) }, { label: "Conversão", color: "#28a87a", values: daily.map((i) => i.conversion) }]} /></section>
+      <section className="indicator-secondary-grid"><Metric tone="blue" label="Tentativas de ligação" value={nf(data.kpis.attempts)} detail="Ligações registradas no período" /><Metric tone="red" label="Leads trabalhados" value={nf(data.kpis.worked)} detail="Leads únicos com tentativa" /><Metric tone="green" label="Leads contatados" value={nf(data.kpis.contacts)} detail="Contato efetivo" /><Metric tone="amber" label="Agendados" value={nf(data.analytics.scheduled)} detail="Agendamento realizado" /><Metric tone="violet" label="Direcionados" value={nf(data.analytics.directed)} detail="Qualificados para continuidade" /></section>
+      <section className="indicator-followup-strip"><div><span>Aproveitamento dos trabalhados</span><strong>{pf(data.kpis.worked ? data.kpis.qualified / data.kpis.worked * 100 : 0)}</strong><small>{nf(data.kpis.qualified)} positivos</small></div><div><span>Leads sem tentativa</span><strong>{nf(data.analytics.noAttempt)}</strong><small>{pf(100 - coverage)} da base</small></div><div><span>Retornos previstos</span><strong>{nf(data.analytics.callbacks.expected)}</strong><small>No período</small></div><div className={data.analytics.callbacks.overdue ? "attention" : ""}><span>Retornos atrasados</span><strong>{nf(data.analytics.callbacks.overdue)}</strong><small>Pendentes após a data prevista</small></div></section>
+      <section className="indicator-two-column"><LineChart title="Cobertura acumulada da base" subtitle="Avanço sobre os leads selecionados" labels={daily.map((i) => i.label)} unit="%" series={[{ label: "Cobertura acumulada", color: "#7d5bd6", values: daily.map((i) => i.coverage) }]} /><article className="indicator-panel"><div className="indicator-panel-heading"><div><h3>Resultados das tentativas</h3><p>Distribuição dos registros finalizados</p></div></div><div className="result-content"><div className="donut-chart" style={{ background: donut }}><div className="donut-center"><strong>{nf(outcomeTotal)}</strong><span>resultados</span></div></div><div className="legend-list">{data.outcomes.map((i) => <div key={i.code}><span className="legend-color" style={{ background: i.color }} /><span>{i.label}</span><strong>{nf(i.value)}</strong></div>)}</div></div></article></section>
+      <div className="indicator-section-title operational"><div><span>CALENDÁRIO OPERACIONAL</span><h2>Quando a operação acontece — e quando converte</h2></div></div>
+      <section className="indicator-two-column"><BarChart title="Volume de ligações por hora" subtitle="Ligações iniciadas em cada hora" labels={hourly.map((i) => i.label)} values={hourly.map((i) => i.attempts)} /><BarChart title="Taxa de contato por faixa horária" subtitle="Contatos efetivos sobre as tentativas" labels={hourly.map((i) => i.label)} values={hourly.map((i) => i.contactRate)} color="#5d8df7" unit="%" /></section>
+      <section className="indicator-two-column"><BarChart title="Distribuição por número de tentativas" subtitle="Volume em cada tentativa do lead" labels={data.analytics.attemptSequence.map((i) => i.label)} values={data.analytics.attemptSequence.map((i) => i.attempts)} /><BarChart title="Taxa de contato por tentativa" subtitle="Contatos efetivos por tentativa" labels={data.analytics.attemptSequence.map((i) => i.label)} values={data.analytics.attemptSequence.map((i) => i.contactRate)} color="#28a87a" unit="%" /></section>
+      <section className="indicator-panel indicator-performance-panel"><div className="indicator-panel-heading"><div><h3>Desempenho da operação</h3><p>Compare produtividade e resultados no mesmo período.</p></div><div className="indicator-segment"><button className={mode === "sdr" ? "active" : ""} onClick={() => setMode("sdr")}>Por SDR</button><button className={mode === "campaign" ? "active" : ""} onClick={() => setMode("campaign")}>Por campanha</button></div></div><div className="table-wrap"><table><thead><tr><th>{mode === "sdr" ? "SDR" : "Campanha / ação"}</th><th>Tentativas</th><th>Trabalhados</th><th>Contatados</th><th>Positivos</th><th>Conversão</th></tr></thead><tbody>{rows.map((i) => <tr key={i.id}><td><strong>{i.name}</strong></td><td>{nf(i.attempts)}</td><td>{nf(i.worked)}</td><td>{nf(i.contacts)}</td><td>{nf(i.positive)}</td><td><span className="conversion-pill">{pf(i.conversion)}</span></td></tr>)}</tbody></table>{!rows.length && <div className="indicator-empty">Nenhum resultado para os filtros selecionados.</div>}</div></section>
+    </>}</div>;
 }
