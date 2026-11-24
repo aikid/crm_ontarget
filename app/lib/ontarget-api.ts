@@ -477,8 +477,8 @@ export const onTargetApi = {
   },
   sellers: {
     list: (clientId?: string) => request<{ data: SellerUser[] }>(`/api/sellers${queryString({ clientId })}`),
-    create: (payload: { clientId?: string; storeId: string; sellerOption: string; name: string; email: string }) => request<SellerUser>("/api/sellers", { method: "POST", body: JSON.stringify(payload) }),
-    update: (id: string, payload: Partial<{ storeId: string; sellerOption: string; name: string; email: string; active: boolean }>) => request<SellerUser>(`/api/sellers/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+    create: (payload: { clientId?: string; sellerOption: string; name: string; email: string }) => request<SellerUser>("/api/sellers", { method: "POST", body: JSON.stringify(payload) }),
+    update: (id: string, payload: Partial<{ sellerOption: string; name: string; email: string; active: boolean }>) => request<SellerUser>(`/api/sellers/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   },
   system: {
     sipAccounts: () => request<SystemSipAccountsResponse>("/api/system/sip-accounts"),
