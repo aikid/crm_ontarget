@@ -46,6 +46,25 @@ function campaignStatus(status: AdminCampaign["status"]) {
   return { ACTIVE: "Ativa", INACTIVE: "Inativa", COMPLETED: "Concluída" }[status];
 }
 
+function linkedDeleteMessage(kind: "client" | "store" | "campaign", record: AdminClient | AdminStore | AdminCampaign) {
+  if (kind === "client") {
+    const client = record as AdminClient;
+    if (client._count.stores || client._count.campaigns || client._count.users || client._count.leads) {
+      return "Este cliente possui vendedores, ações, usuários ou leads vinculados. Desative-o para preservar o histórico ou remova primeiro todos os vínculos.";
+    }
+  }
+  if (kind === "store") {
+    const store = record as AdminStore;
+    if (store._count.campaigns || store._count.leads) {
+      return "Este vendedor possui ações ou leads vinculados. Desative-o para preservar o histórico ou remova primeiro todos os vínculos.";
+    }
+  }
+  if (kind === "campaign" && (record as AdminCampaign)._count.leads) {
+    return "Esta ação possui leads vinculados. Desative-a para preservar o histórico ou remova primeiro todos os vínculos.";
+  }
+  return null;
+}
+
 export default function AdminScreen() {
   const [tab, setTab] = useState<Tab>("clients");
   const [clients, setClients] = useState<AdminClient[]>([]);
@@ -226,6 +245,12 @@ export default function AdminScreen() {
   async function deleteRecord(kind: "client" | "store" | "campaign", record: AdminClient | AdminStore | AdminCampaign) {
     const labels = { client: "cliente", store: "vendedor", campaign: "ação" } as const;
     const successMessages = { client: "Cliente excluído com sucesso.", store: "Vendedor excluído com sucesso.", campaign: "Ação excluída com sucesso." } as const;
+    const blockedMessage = linkedDeleteMessage(kind, record);
+    if (blockedMessage) {
+      setNotice("");
+      setError(blockedMessage);
+      return;
+    }
     if (!window.confirm(`Excluir ${labels[kind]} “${record.name}”? Esta operação não pode ser desfeita.`)) return;
     setDeletingId(record.id);
     setError("");
@@ -277,6 +302,7 @@ export default function AdminScreen() {
 
       {error && <div className="admin-message error" role="alert">{error}</div>}
       {notice && <div className="admin-message success" role="status">{notice}</div>}
+      {error && <div className="admin-error-toast" role="alert" aria-live="assertive"><span aria-hidden="true">!</span><div><strong>Não foi possível concluir</strong><p>{error}</p></div><button type="button" onClick={() => setError("")} aria-label="Fechar aviso">×</button></div>}
 
       <section className="admin-table-card">
         {loading ? <div className="admin-empty">Preparando cadastros...</div> : (

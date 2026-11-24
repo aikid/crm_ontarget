@@ -90,6 +90,7 @@ export default function SdrScreen() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [selectedResult, setSelectedResult] = useState<ResultType | null>(null);
+  const [automaticResult, setAutomaticResult] = useState<ResultType | null>(null);
   const [vehicleInterest, setVehicleInterest] = useState("");
   const [notes, setNotes] = useState("");
   const [callbackAt, setCallbackAt] = useState(localDateTimeInput);
@@ -108,6 +109,10 @@ export default function SdrScreen() {
 
   const campaign = useMemo(() => campaigns.find((item) => item.id === campaignId) || null, [campaignId, campaigns]);
   const attemptNumber = lead ? Math.min(3, lead.attempts + 1) : 1;
+  const visibleResultOptions = useMemo(
+    () => automaticResult ? resultOptions.filter((option) => option.id === automaticResult) : resultOptions,
+    [automaticResult],
+  );
   const nextCallback = callbacks[0] || null;
   const reservationRemaining = useMemo(
     () => reservationLabel(lead?.reservation?.reservedUntil, clock),
@@ -141,6 +146,7 @@ export default function SdrScreen() {
       setCallId(null);
       callIdRef.current = null;
       setSelectedResult(null);
+      setAutomaticResult(null);
       setVehicleInterest("");
       setNotes("");
       setCallbackAt(localDateTimeInput());
@@ -262,12 +268,12 @@ export default function SdrScreen() {
       if (callPhase !== "ended") return;
       const target = event.target as HTMLElement;
       if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-      const option = resultOptions.find((item) => item.shortcut === event.key);
+      const option = visibleResultOptions.find((item) => item.shortcut === event.key);
       if (option) setSelectedResult(option.id);
     }
     window.addEventListener("keydown", shortcuts);
     return () => window.removeEventListener("keydown", shortcuts);
-  }, [callPhase]);
+  }, [callPhase, visibleResultOptions]);
 
   async function changeCampaign(nextCampaignId: string) {
     if (!nextCampaignId || nextCampaignId === campaignId) return;
@@ -290,6 +296,7 @@ export default function SdrScreen() {
       setCallId(null);
       callIdRef.current = null;
       setSelectedResult(null);
+      setAutomaticResult(null);
       setVehicleInterest("");
       setNotes("");
       setCallbackAt(localDateTimeInput());
@@ -303,6 +310,8 @@ export default function SdrScreen() {
   async function startCall() {
     if (!lead || callPhase !== "idle") return;
     setToast("");
+    setSelectedResult(null);
+    setAutomaticResult(null);
     setCallPhase("calling");
     setCallSeconds(0);
     const ringbackTone = new RingbackTone();
@@ -362,6 +371,10 @@ export default function SdrScreen() {
   async function monitorCall(activeCallId: string): Promise<void> {
     const status = await onTargetApi.asteriskCall(activeCallId);
     if (["ended", "failed", "canceled", "busy", "no_answer", "rejected"].includes(status.status)) {
+      if (status.status === "no_answer") {
+        setAutomaticResult("VOICEMAIL");
+        setSelectedResult("VOICEMAIL");
+      }
       if (!["ended", "canceled"].includes(status.status)) {
         const labels: Record<string, string> = {
           busy: "O número está ocupado.",
@@ -438,6 +451,7 @@ export default function SdrScreen() {
       callIdRef.current = null;
       setQueueEmpty(false);
       setSelectedResult(null);
+      setAutomaticResult(null);
       setVehicleInterest("");
       setNotes("");
       await refreshQueueSummary(campaignId);
@@ -523,8 +537,8 @@ export default function SdrScreen() {
               </article>
 
               {callPhase === "ended" && <article className="result-card">
-                <div className="result-heading"><div><span className="section-kicker">REGISTRO DA TENTATIVA</span><h2>Qual foi o resultado do contato?</h2><p>O registro libera o lead e carrega o próximo item da fila.</p></div><div className="result-heading-status"><span className="required-note">Obrigatório</span></div></div>
-                <div className="result-options">{resultOptions.map((option) => <button type="button" key={option.id} className={selectedResult === option.id ? "selected" : ""} onClick={() => { setSelectedResult(option.id); if (!usesVehicle(option.id)) setVehicleInterest(""); if (!usesNotes(option.id)) setNotes(""); }}><span className="result-radio">{selectedResult === option.id ? "✓" : ""}</span><div><strong>{option.label}</strong><small>{option.detail}</small></div><kbd>{option.shortcut}</kbd></button>)}</div>
+                <div className="result-heading"><div><span className="section-kicker">REGISTRO DA TENTATIVA</span><h2>{automaticResult ? "Ligação não atendida" : "Qual foi o resultado do contato?"}</h2><p>{automaticResult ? "A telefonia identificou ausência de atendimento. Confirme o registro como Caixa Postal." : "O registro libera o lead e carrega o próximo item da fila."}</p></div><div className="result-heading-status"><span className="required-note">Obrigatório</span></div></div>
+                <div className={`result-options ${automaticResult ? "automatic" : ""}`}>{visibleResultOptions.map((option) => <button type="button" key={option.id} className={selectedResult === option.id ? "selected" : ""} aria-pressed={selectedResult === option.id} onClick={() => { if (automaticResult) return; setSelectedResult(option.id); if (!usesVehicle(option.id)) setVehicleInterest(""); if (!usesNotes(option.id)) setNotes(""); }}><span className="result-radio">{selectedResult === option.id ? "✓" : ""}</span><div><strong>{option.label}</strong><small>{option.detail}</small></div><kbd>{option.shortcut}</kbd></button>)}</div>
                 {selectedResult && <div className="conditional-form">
                   {selectedResult === "CALLBACK" && <div className="form-grid callback-form"><label className="form-field"><span>Data e horário do retorno <b>*</b></span><input type="datetime-local" value={callbackAt} min={localDateTimeInput(new Date())} onChange={(event) => setCallbackAt(event.target.value)} /></label></div>}
                   {selectedResult === "VOICEMAIL" && <div className="no-answer-note"><div><span>TENTATIVA ATUAL</span><strong>{attemptNumber} de 3</strong></div><div><strong>{attemptNumber === 3 ? "Última tentativa" : "Lead voltará à fila"}</strong><p>{attemptNumber === 3 ? "Ao salvar, o limite será atingido e o lead será encerrado." : "Uma nova tentativa poderá ser iniciada pela fila."}</p></div></div>}
