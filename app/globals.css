@@ -1857,3 +1857,8 @@ kbd { display: inline-grid; min-width: 20px; height: 19px; place-items: center; 
   .lead-pagination { align-items: flex-start; flex-direction: column; gap: 8px; }
   .lead-audit-form { grid-template-columns: 1fr; }
 }
+
+.seller-management.embedded { padding: 0; }
+.seller-management .seller-client-filter { max-width: 360px; margin: 0 0 16px; }
+.seller-management .seller-password-note { margin: 0; padding: 12px 14px; border: 1px solid #dbe6fb; border-radius: 9px; color: #52617b; background: #f6f9ff; font-size: 11px; line-height: 1.5; }
+.seller-management td > small { display: block; margin-top: 3px; color: #8a8e98; }

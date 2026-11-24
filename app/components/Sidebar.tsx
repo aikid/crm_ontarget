@@ -19,6 +19,7 @@ const navItems = [
   { id: "admin", label: "Cadastros", icon: "grid", enabled: true, managerOnly: true },
   { id: "imports", label: "Importar leads", icon: "upload", enabled: true, managerOnly: true },
   { id: "leads", label: "Leads", icon: "users", enabled: true, managerOnly: true },
+  { id: "sellers", label: "Usuários vendedores", icon: "user", enabled: true, managerOnly: true },
   { id: "system", label: "Configura\u00e7\u00f5es", icon: "settings", enabled: true, adminOnly: true },
 ];
 
@@ -82,7 +83,7 @@ export default function Sidebar({ activeScreen, onNavigate, user, onLogout, logg
           <span className="avatar avatar-dark">{user.initials}</span>
           <div>
             <strong>{user.name}</strong>
-            <span>{user.role === "ADMIN" ? "Admin do sistema" : user.role === "GESTOR" ? "Gestor" : "SDR"}</span>
+            <span>{user.role === "ADMIN" ? "Admin do sistema" : user.role === "GESTOR" ? "Gestor" : user.role === "SELLER" ? "Vendedor" : "SDR"}</span>
           </div>
           <button type="button" aria-label="Abrir meu perfil" title="Minha conta" onClick={openProfile}>
             <NavIcon name="user" />

@@ -39,7 +39,7 @@ function formatDate(value?: string | null) {
 }
 
 function roleLabel(role: AdminUser["role"]) {
-  return { ADMIN: "Admin do sistema", GESTOR: "Gestor", SDR: "SDR", CLIENT: "Portal do Cliente" }[role];
+  return { ADMIN: "Admin do sistema", GESTOR: "Gestor", SDR: "SDR", CLIENT: "Portal do Cliente", SELLER: "Vendedor" }[role];
 }
 
 function campaignStatus(status: AdminCampaign["status"]) {

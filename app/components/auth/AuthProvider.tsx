@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {profileOpen && user && <ProfileModal user={user} onClose={() => setProfileOpen(false)} onUpdate={updateProfile} />}
+      {(profileOpen || user?.mustChangePassword) && user && <ProfileModal user={user} forced={user.mustChangePassword} onClose={() => { if (!user.mustChangePassword) setProfileOpen(false); }} onUpdate={updateProfile} />}
       <LoadingOverlay
         show={loggingOut}
         title="Encerrando sua sessão"

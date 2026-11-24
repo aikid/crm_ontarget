@@ -6,12 +6,20 @@ type QueryValue = string | number | boolean | null | undefined;
 export type SessionUser = {
   id: string;
   clientId: string | null;
+  storeId: string | null;
   name: string;
   email: string;
   initials: string;
-  role: "ADMIN" | "GESTOR" | "SDR" | "CLIENT";
+  role: "ADMIN" | "GESTOR" | "SDR" | "CLIENT" | "SELLER";
+  sellerOption: string | null;
+  mustChangePassword: boolean;
   active: boolean;
   client: null | { id: string; name: string };
+};
+
+export type SellerUser = SessionUser & {
+  emailSent?: boolean;
+  store: null | { id: string; name: string; shortName: string; active: boolean };
 };
 
 export type SessionResponse = { user: SessionUser; csrfToken: string };
@@ -466,6 +474,11 @@ export const onTargetApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  },
+  sellers: {
+    list: (clientId?: string) => request<{ data: SellerUser[] }>(`/api/sellers${queryString({ clientId })}`),
+    create: (payload: { clientId?: string; storeId: string; sellerOption: string; name: string; email: string }) => request<SellerUser>("/api/sellers", { method: "POST", body: JSON.stringify(payload) }),
+    update: (id: string, payload: Partial<{ storeId: string; sellerOption: string; name: string; email: string; active: boolean }>) => request<SellerUser>(`/api/sellers/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   },
   system: {
     sipAccounts: () => request<SystemSipAccountsResponse>("/api/system/sip-accounts"),

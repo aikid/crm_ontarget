@@ -7,8 +7,9 @@ import LoadingOverlay from "../ui/LoadingOverlay";
 import ClientDashboard from "./ClientDashboard";
 import ClientResults from "./ClientResults";
 import ClientSidebar from "./ClientSidebar";
+import SellerManagement from "../SellerManagement";
 
-export type ClientScreen = "dashboard" | "results";
+export type ClientScreen = "dashboard" | "results" | "sellers";
 
 export default function ClientPortal() {
   const { user, loggingOut, logout } = useAuth();
@@ -79,6 +80,8 @@ export default function ClientPortal() {
           <div className="client-page"><div className="results-empty"><strong>Não foi possível carregar as campanhas</strong><p>{error}</p></div></div>
         ) : !currentCampaign ? (
           <div className="client-page"><div className="results-empty"><strong>Nenhuma campanha disponível</strong><p>Não há campanhas vinculadas a este cliente.</p></div></div>
+        ) : screen === "sellers" ? (
+          <div className="client-page"><SellerManagement embedded /></div>
         ) : screen === "dashboard" ? (
           <ClientDashboard key={currentCampaign.id} campaign={currentCampaign} userName={user?.name || "Cliente"} onOpenResults={() => setScreen("results")} onReady={handleCampaignReady} />
         ) : (

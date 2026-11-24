@@ -83,7 +83,7 @@ export default function LoginScreen({ area, unauthorizedUser }: Props) {
     setError("");
     try {
       const authenticatedUser = await login(email, password);
-      const destination = authenticatedUser.role === "CLIENT" ? "/cliente" : "/";
+      const destination = authenticatedUser.role === "CLIENT" ? "/cliente" : authenticatedUser.role === "SELLER" ? "/vendedor" : "/";
       if (window.location.pathname !== destination) window.location.replace(destination);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível entrar.");
@@ -157,7 +157,7 @@ export default function LoginScreen({ area, unauthorizedUser }: Props) {
               <p>
                 Você entrou como <strong>{unauthorizedUser.name}</strong>. Acesse o ambiente correspondente ao seu perfil.
               </p>
-              <Link className="auth-primary-link" href={unauthorizedUser.role === "CLIENT" ? "/cliente" : "/"}>
+              <Link className="auth-primary-link" href={unauthorizedUser.role === "CLIENT" ? "/cliente" : unauthorizedUser.role === "SELLER" ? "/vendedor" : "/"}>
                 Ir para o ambiente correto <span aria-hidden="true">→</span>
               </Link>
               <button className="auth-secondary-button" type="button" onClick={() => void logout()} disabled={loggingOut}>

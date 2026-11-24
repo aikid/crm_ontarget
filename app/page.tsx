@@ -11,8 +11,9 @@ import LeadImportScreen from "./components/LeadImportScreen";
 import LeadSearchScreen from "./components/LeadSearchScreen";
 import LoadingOverlay from "./components/ui/LoadingOverlay";
 import SystemAdminScreen from "./components/SystemAdminScreen";
+import SellerManagement from "./components/SellerManagement";
 
-export type Screen = "dashboard" | "sdr" | "admin" | "imports" | "leads" | "system";
+export type Screen = "dashboard" | "sdr" | "admin" | "imports" | "leads" | "sellers" | "system";
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("dashboard");
@@ -42,6 +43,8 @@ export default function Home() {
           <AdminScreen />
         ) : activeScreen === "leads" ? (
           <LeadSearchScreen />
+        ) : activeScreen === "sellers" ? (
+          <SellerManagement />
         ) : (
           <LeadImportScreen />
         )}

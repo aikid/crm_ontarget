@@ -9,6 +9,7 @@ type Props = {
   user: SessionUser;
   onClose: () => void;
   onUpdate: (payload: ProfilePayload) => Promise<void>;
+  forced?: boolean;
 };
 
 const roleLabels: Record<SessionUser["role"], string> = {
@@ -16,9 +17,10 @@ const roleLabels: Record<SessionUser["role"], string> = {
   GESTOR: "Gestor",
   SDR: "SDR",
   CLIENT: "Portal do Cliente",
+  SELLER: "Vendedor",
 };
 
-export default function ProfileModal({ user, onClose, onUpdate }: Props) {
+export default function ProfileModal({ user, onClose, onUpdate, forced = false }: Props) {
   const [name, setName] = useState(user.name);
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -33,6 +35,10 @@ export default function ProfileModal({ user, onClose, onUpdate }: Props) {
     setNotice("");
     if (newPassword !== confirmation) {
       setError("A confirmação não corresponde à nova senha.");
+      return;
+    }
+    if (forced && !newPassword) {
+      setError("Defina uma nova senha para concluir o primeiro acesso.");
       return;
     }
     if (!name.trim() || (name.trim() === user.name && !newPassword)) {
@@ -57,11 +63,11 @@ export default function ProfileModal({ user, onClose, onUpdate }: Props) {
   }
 
   return (
-    <div className="profile-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="profile-modal-backdrop" role="presentation" onMouseDown={(event) => !forced && event.target === event.currentTarget && onClose()}>
       <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
         <header>
-          <div><span>MINHA CONTA</span><h2 id="profile-title">Perfil e segurança</h2></div>
-          <button type="button" onClick={onClose} aria-label="Fechar">×</button>
+          <div><span>{forced ? "PRIMEIRO ACESSO" : "MINHA CONTA"}</span><h2 id="profile-title">{forced ? "Defina sua nova senha" : "Perfil e segurança"}</h2></div>
+          {!forced && <button type="button" onClick={onClose} aria-label="Fechar">×</button>}
         </header>
 
         <form onSubmit={submit}>
@@ -77,7 +83,7 @@ export default function ProfileModal({ user, onClose, onUpdate }: Props) {
           <input id="profile-email" value={user.email} readOnly aria-readonly="true" />
           <small className="profile-field-help">Para alterar o e-mail, solicite ao gestor. No perfil SDR ele também identifica o ramal de telefonia.</small>
 
-          <div className="profile-section-heading"><strong>Alterar senha</strong><span>Opcional</span></div>
+          <div className="profile-section-heading"><strong>Alterar senha</strong><span>{forced ? "Obrigatório" : "Opcional"}</span></div>
           <div className="profile-password-grid">
             <div><label htmlFor="profile-new-password">Nova senha</label><input id="profile-new-password" type={showPasswords ? "text" : "password"} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} /></div>
             <div><label htmlFor="profile-password-confirmation">Confirmar senha</label><input id="profile-password-confirmation" type={showPasswords ? "text" : "password"} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" minLength={8} /></div>
@@ -87,7 +93,7 @@ export default function ProfileModal({ user, onClose, onUpdate }: Props) {
           {error && <div className="profile-message error" role="alert">{error}</div>}
           {notice && <div className="profile-message success" role="status">{notice}</div>}
 
-          <footer><button type="button" onClick={onClose}>Cancelar</button><button className="primary" type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar alterações"}</button></footer>
+          <footer>{!forced && <button type="button" onClick={onClose}>Cancelar</button>}<button className="primary" type="submit" disabled={saving}>{saving ? "Salvando..." : forced ? "Definir senha e continuar" : "Salvar alterações"}</button></footer>
         </form>
       </section>
     </div>
