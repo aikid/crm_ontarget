@@ -19,6 +19,7 @@ export type SessionUser = {
 
 export type SellerUser = SessionUser & {
   emailSent?: boolean;
+  source: "USER" | "STORE";
   store: null | { id: string; name: string; shortName: string; active: boolean };
 };
 
