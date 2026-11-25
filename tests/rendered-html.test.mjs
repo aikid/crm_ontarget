@@ -29,7 +29,7 @@ test("renderiza a aplicação protegida sem expor conteúdo antes da sessão", a
 });
 
 test("mantém sessão, credenciais e CSRF centralizados no cliente da API", async () => {
-  const [layout, page, sidebar, clientSidebar, clientPortal, clientLeadDrawer, provider, profile, login, styles, api, sdr, dashboard, leadSearch, admin, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
+  const [layout, page, sidebar, clientSidebar, clientPortal, clientLeadDrawer, provider, profile, login, styles, api, sdr, dashboard, leadSearch, admin, sellerManagement, leadImport, loadingOverlay, asteriskSip, ringbackTone] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Sidebar.tsx", import.meta.url), "utf8"),
@@ -45,6 +45,7 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
     readFile(new URL("../app/components/DashboardScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/LeadSearchScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/AdminScreen.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/SellerManagement.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/LeadImportScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ui/LoadingOverlay.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/asterisk-sip.ts", import.meta.url), "utf8"),
@@ -137,13 +138,14 @@ test("mantém sessão, credenciais e CSRF centralizados no cliente da API", asyn
   assert.match(admin, /table-identity/);
   assert.match(admin, /formEntityLabel\(tab\)/);
   assert.match(admin, /label="Nome"/);
-  assert.match(admin, /label="E-mail de acesso"/);
+  assert.match(admin, /SellerManagement embedded/);
+  assert.match(sellerManagement, /E-mail de acesso/);
   assert.match(admin, /createCampaign\(\{ \.\.\.payload, clientId: form\.clientId, storeId: form\.storeId \}\)/);
-  assert.match(admin, /label="Opção vendedor"/);
-  assert.match(admin, /Todos.*Venda direta.*0km.*Usado.*Consórcio/s);
+  assert.match(sellerManagement, /Opção vendedor/);
+  assert.match(sellerManagement, /Todos.*Venda direta.*0km.*Usado.*Consórcio/s);
   assert.match(admin, /shortName: "Todos"/);
   assert.match(admin, /stores: "Vendedores"/);
-  assert.match(admin, /<th>Vendedor<\/th>/);
+  assert.match(sellerManagement, /<th>Nome<\/th>/);
   assert.match(admin, /Cliente \/ vendedor/);
   assert.match(admin, /vendedores ·.*ações/);
   assert.match(admin, /label="Nome da ação"/);

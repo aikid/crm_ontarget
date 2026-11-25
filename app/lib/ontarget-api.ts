@@ -17,17 +17,9 @@ export type SessionUser = {
   client: null | { id: string; name: string };
 };
 
-export type SellerUser = {
-  id: string;
-  clientId: string;
-  name: string;
-  email: string;
-  shortName: string;
-  sellerOption: string;
-  active: boolean;
-  client: { id: string; name: string; active: boolean };
-  access: null | { id: string; email: string; active: boolean; lastLoginAt: string | null; mustChangePassword: boolean };
-  _count: { campaigns: number; leads: number };
+export type SellerUser = SessionUser & {
+  emailSent?: boolean;
+  store: null | { id: string; name: string; shortName: string; active: boolean };
 };
 
 export type SessionResponse = { user: SessionUser; csrfToken: string };
@@ -85,7 +77,6 @@ export type CampaignDashboardResponse = {
 export type AdminClient = {
   id: string;
   name: string;
-  email: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -465,8 +456,8 @@ export const onTargetApi = {
     deleteClient: (id: string) => request<void>(`/api/admin/clients/${id}`, { method: "DELETE" }),
     sendClientAccess: (id: string) => request<{ email: string; emailSent: true; expiresInMinutes: number; userId: string }>(`/api/admin/clients/${id}/access`, { method: "POST" }),
     stores: () => request<{ data: AdminStore[] }>("/api/admin/stores"),
-    createStore: (payload: { clientId: string; name: string; shortName: string; email: string }) => request<AdminStore>("/api/sellers", { method: "POST", body: JSON.stringify({ clientId: payload.clientId, name: payload.name, email: payload.email, sellerOption: payload.shortName }) }),
-    updateStore: (id: string, payload: { name?: string; shortName?: string; email?: string; active?: boolean }) => request<AdminStore>(`/api/sellers/${id}`, { method: "PATCH", body: JSON.stringify({ ...payload, ...(payload.shortName !== undefined ? { sellerOption: payload.shortName } : {}), shortName: undefined }) }),
+    createStore: (payload: { clientId: string; name: string; shortName: string }) => request<AdminStore>("/api/admin/stores", { method: "POST", body: JSON.stringify(payload) }),
+    updateStore: (id: string, payload: { name?: string; shortName?: string; active?: boolean }) => request<AdminStore>(`/api/admin/stores/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
     deleteStore: (id: string) => request<void>(`/api/admin/stores/${id}`, { method: "DELETE" }),
     campaigns: () => request<{ data: AdminCampaign[] }>("/api/admin/campaigns"),
     createCampaign: (payload: Record<string, unknown>) => request<AdminCampaign>("/api/admin/campaigns", { method: "POST", body: JSON.stringify(payload) }),

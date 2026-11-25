@@ -9,6 +9,7 @@ import {
   type AdminUser,
 } from "../lib/ontarget-api";
 import LoadingOverlay from "./ui/LoadingOverlay";
+import SellerManagement from "./SellerManagement";
 
 type Tab = "clients" | "stores" | "campaigns" | "users";
 type FormValues = Record<string, string>;
@@ -21,8 +22,6 @@ const tabLabels: Record<Tab, string> = {
   campaigns: "Ações",
   users: "Usuários",
 };
-
-const sellerOptions = ["Todos", "Venda direta", "0km", "Usado", "Consórcio"].map((option) => [option, option]);
 
 function formEntityLabel(tab: Tab) {
   if (tab === "stores") return "Vendedor";
@@ -69,6 +68,7 @@ export default function AdminScreen() {
   const [tab, setTab] = useState<Tab>("clients");
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [stores, setStores] = useState<AdminStore[]>([]);
+  const [sellerCount, setSellerCount] = useState(0);
   const [campaigns, setCampaigns] = useState<AdminCampaign[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,17 +88,19 @@ export default function AdminScreen() {
         onTargetApi.admin.stores(),
         onTargetApi.admin.campaigns(),
         onTargetApi.admin.users(),
+        onTargetApi.sellers.list(),
       ]), []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [clientRows, storeRows, campaignRows, userRows] = await fetchCatalogs();
+      const [clientRows, storeRows, campaignRows, userRows, sellerRows] = await fetchCatalogs();
       setClients(clientRows.data);
       setStores(storeRows.data);
       setCampaigns(campaignRows.data);
       setUsers(userRows.data);
+      setSellerCount(sellerRows.data.length);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível carregar os cadastros.");
     } finally {
@@ -109,12 +111,13 @@ export default function AdminScreen() {
   useEffect(() => {
     let cancelled = false;
     fetchCatalogs()
-      .then(([clientRows, storeRows, campaignRows, userRows]) => {
+      .then(([clientRows, storeRows, campaignRows, userRows, sellerRows]) => {
         if (cancelled) return;
         setClients(clientRows.data);
         setStores(storeRows.data);
         setCampaigns(campaignRows.data);
         setUsers(userRows.data);
+        setSellerCount(sellerRows.data.length);
       })
       .catch((cause) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "Não foi possível carregar os cadastros.");
@@ -135,7 +138,7 @@ export default function AdminScreen() {
     setNotice("");
     setError("");
     if (tab === "clients") setForm({ name: "", email: "" });
-    if (tab === "stores") setForm({ clientId, name: "", email: "", shortName: "Todos" });
+    if (tab === "stores") setForm({ clientId, name: "", shortName: "Todos" });
     if (tab === "campaigns") {
       const store = stores.find((row) => row.active && row.clientId === clientId);
       setForm({ clientId, storeId: store?.id || "", name: "", status: "ACTIVE", startDate: "", endDate: "" });
@@ -156,7 +159,7 @@ export default function AdminScreen() {
     }
     if (tab === "stores") {
       const store = record as AdminStore;
-      setForm({ clientId: store.clientId, name: store.name, email: store.email || "", shortName: store.shortName });
+      setForm({ clientId: store.clientId, name: store.name, shortName: store.shortName });
     }
     if (tab === "campaigns") {
       const campaign = record as AdminCampaign;
@@ -181,8 +184,8 @@ export default function AdminScreen() {
         else await onTargetApi.admin.createClient({ name: form.name, email: form.email });
       }
       if (tab === "stores") {
-        if (editing) await onTargetApi.admin.updateStore(editing.id, { name: form.name, email: form.email, shortName: form.shortName });
-        else await onTargetApi.admin.createStore({ clientId: form.clientId, name: form.name, email: form.email, shortName: form.shortName });
+        if (editing) await onTargetApi.admin.updateStore(editing.id, { name: form.name, shortName: form.shortName });
+        else await onTargetApi.admin.createStore({ clientId: form.clientId, name: form.name, shortName: form.shortName });
       }
       if (tab === "campaigns") {
         const payload = { name: form.name, status: form.status, startDate: form.startDate, endDate: form.endDate };
@@ -289,13 +292,13 @@ export default function AdminScreen() {
       <LoadingOverlay show={loading} title="Carregando cadastros" message="Sincronizando clientes, vendedores, ações e usuários." />
       <header className="admin-header">
         <div><span>GESTÃO DA PLATAFORMA</span><h1>Cadastros</h1><p>Clientes, vendedores, ações e acessos da operação.</p></div>
-        <button type="button" onClick={openCreate}>+ Novo cadastro</button>
+        {tab !== "stores" && <button type="button" onClick={openCreate}>+ Novo cadastro</button>}
       </header>
 
       <nav className="admin-tabs" aria-label="Tipos de cadastro">
         {(Object.keys(tabLabels) as Tab[]).map((item) => (
           <button key={item} type="button" className={tab === item ? "active" : ""} onClick={() => { setTab(item); setFormOpen(false); setError(""); setNotice(""); }}>
-            {tabLabels[item]} <span>{item === "clients" ? clients.length : item === "stores" ? stores.length : item === "campaigns" ? campaigns.length : users.length}</span>
+            {tabLabels[item]} <span>{item === "clients" ? clients.length : item === "stores" ? sellerCount : item === "campaigns" ? campaigns.length : users.length}</span>
           </button>
         ))}
       </nav>
@@ -304,16 +307,15 @@ export default function AdminScreen() {
       {notice && <div className="admin-message success" role="status">{notice}</div>}
       {error && <div className="admin-error-toast" role="alert" aria-live="assertive"><span aria-hidden="true">!</span><div><strong>Não foi possível concluir</strong><p>{error}</p></div><button type="button" onClick={() => setError("")} aria-label="Fechar aviso">×</button></div>}
 
-      <section className="admin-table-card">
+      {tab === "stores" ? <SellerManagement embedded /> : <section className="admin-table-card">
         {loading ? <div className="admin-empty">Preparando cadastros...</div> : (
           <div className="admin-table-wrap">
             {tab === "clients" && <ClientTable rows={clients} sendingAccessId={sendingAccessId} deletingId={deletingId} onEdit={openEdit} onToggle={(row) => void toggleActive("client", row)} onSendAccess={(row) => void sendClientAccess(row)} onDelete={(row) => void deleteRecord("client", row)} />}
-            {tab === "stores" && <StoreTable rows={stores} deletingId={deletingId} onEdit={openEdit} onToggle={(row) => void toggleActive("store", row)} onDelete={(row) => void deleteRecord("store", row)} />}
             {tab === "campaigns" && <CampaignTable rows={campaigns} deletingId={deletingId} onEdit={openEdit} onStatus={(row, status) => void setCampaignStatus(row, status)} onDelete={(row) => void deleteRecord("campaign", row)} />}
             {tab === "users" && <UserTable rows={users} onEdit={openEdit} onToggle={(row) => void toggleActive("user", row)} />}
           </div>
         )}
-      </section>
+      </section>}
 
       {formOpen && (
         <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setFormOpen(false)}>
@@ -323,12 +325,6 @@ export default function AdminScreen() {
               {tab === "clients" && <>
                 <TextField label="Nome do cliente" value={form.name} onChange={(value) => setField("name", value)} />
                 <TextField label="E-mail" type="email" value={form.email} onChange={(value) => setField("email", value)} />
-              </>}
-              {tab === "stores" && <>
-                <SelectField label="Cliente" value={form.clientId} disabled={Boolean(editing)} onChange={(value) => setField("clientId", value)} options={activeClients.map((row) => [row.id, row.name])} />
-                <TextField label="Nome" value={form.name} onChange={(value) => setField("name", value)} />
-                <TextField label="E-mail de acesso" type="email" name="seller-email" autoComplete="off" preventAutofill value={form.email} onChange={(value) => setField("email", value)} />
-                <SelectField label="Opção vendedor" value={form.shortName} onChange={(value) => setField("shortName", value)} options={sellerOptions} />
               </>}
               {tab === "campaigns" && <>
                 <SelectField label="Cliente" value={form.clientId} disabled={Boolean(editing)} onChange={(value) => { const firstStore = stores.find((row) => row.active && row.clientId === value); setForm((current) => ({ ...current, clientId: value, storeId: firstStore?.id || "" })); }} options={activeClients.map((row) => [row.id, row.name])} />
@@ -370,7 +366,6 @@ function Actions({ onEdit, onToggle, onDelete, deleting, active }: { onEdit: () 
 function initials(value: string) { return value.split(" ").filter(Boolean).map((part) => part[0]).slice(0, 2).join("").toUpperCase(); }
 function TableIdentity({ name, detail, tone = "red" }: { name: string; detail: string; tone?: "red" | "dark" | "green" | "violet" }) { return <div className="table-identity"><span className={`table-row-avatar ${tone}`}>{initials(name)}</span><div><strong>{name}</strong><small>{detail}</small></div></div>; }
 function ClientTable({ rows, sendingAccessId, deletingId, onEdit, onToggle, onSendAccess, onDelete }: { rows: AdminClient[]; sendingAccessId: string; deletingId: string; onEdit: (row: AdminClient) => void; onToggle: (row: AdminClient) => void; onSendAccess: (row: AdminClient) => void; onDelete: (row: AdminClient) => void }) { return <table><thead><tr><th>Cliente</th><th>Estrutura</th><th>Leads</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.email || "E-mail não cadastrado"} /></td><td>{row._count.stores} vendedores · {row._count.campaigns} ações</td><td><span className="table-number">{row._count.leads}</span></td><td><Status active={row.active} /></td><td><div className="admin-actions"><button type="button" disabled={!row.email || sendingAccessId === row.id} title={!row.email ? "Cadastre o e-mail do cliente primeiro" : "Gerar acesso ao Portal do Cliente"} onClick={() => onSendAccess(row)}>{sendingAccessId === row.id ? "Gerando..." : "Enviar acesso"}</button><button type="button" onClick={() => onEdit(row)}>Editar</button><button className={row.active ? "danger-action" : "success-action"} type="button" onClick={() => onToggle(row)}>{row.active ? "Desativar" : "Ativar"}</button><button className="danger-action" type="button" disabled={deletingId === row.id} onClick={() => onDelete(row)}>{deletingId === row.id ? "Excluindo..." : "Excluir"}</button></div></td></tr>)}</tbody></table>; }
-function StoreTable({ rows, deletingId, onEdit, onToggle, onDelete }: { rows: AdminStore[]; deletingId: string; onEdit: (row: AdminStore) => void; onToggle: (row: AdminStore) => void; onDelete: (row: AdminStore) => void }) { return <table><thead><tr><th>Vendedor</th><th>E-mail</th><th>Cliente</th><th>Ações</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.shortName} tone="dark" /></td><td>{row.email || "Acesso não configurado"}</td><td>{row.client.name}</td><td><span className="table-number">{row._count.campaigns}</span></td><td><Status active={row.active} /></td><td><Actions active={row.active} deleting={deletingId === row.id} onEdit={() => onEdit(row)} onToggle={() => onToggle(row)} onDelete={() => onDelete(row)} /></td></tr>)}</tbody></table>; }
 function CampaignTable({ rows, deletingId, onEdit, onStatus, onDelete }: { rows: AdminCampaign[]; deletingId: string; onEdit: (row: AdminCampaign) => void; onStatus: (row: AdminCampaign, status: AdminCampaign["status"]) => void; onDelete: (row: AdminCampaign) => void }) { return <table><thead><tr><th>Ação</th><th>Cliente / vendedor</th><th>Período</th><th>Leads</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.id} tone="violet" /></td><td>{row.client.name}<small>{row.store.shortName}</small></td><td>{formatDate(row.startDate)} — {formatDate(row.endDate)}</td><td><span className="table-number">{row._count.leads}</span></td><td><Status active={row.status === "ACTIVE"} label={campaignStatus(row.status)} /></td><td><div className="admin-actions"><button type="button" onClick={() => onEdit(row)}>Editar</button><button className={row.status === "ACTIVE" ? "danger-action" : "success-action"} type="button" onClick={() => onStatus(row, row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}>{row.status === "ACTIVE" ? "Desativar" : "Ativar"}</button><button className="danger-action" type="button" disabled={deletingId === row.id} onClick={() => onDelete(row)}>{deletingId === row.id ? "Excluindo..." : "Excluir"}</button></div></td></tr>)}</tbody></table>; }
 function UserTable({ rows, onEdit, onToggle }: { rows: AdminUser[]; onEdit: (row: AdminUser) => void; onToggle: (row: AdminUser) => void }) { return <table><thead><tr><th>Usuário</th><th>Perfil</th><th>Cliente</th><th>Último acesso</th><th>Status</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><TableIdentity name={row.name} detail={row.email} tone="green" /></td><td>{roleLabel(row.role)}</td><td>{row.client?.name || "SysOn"}</td><td>{row.lastLoginAt ? formatDate(row.lastLoginAt) : "Nunca"}</td><td><Status active={row.active} /></td><td><Actions active={row.active} onEdit={() => onEdit(row)} onToggle={() => onToggle(row)} /></td></tr>)}</tbody></table>; }
 
